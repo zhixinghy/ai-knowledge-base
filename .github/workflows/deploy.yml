@@ -29,18 +29,21 @@ jobs:
           cp -r public .next/standalone/ 2>/dev/null || true
           cp -r .next/static .next/standalone/.next/
 
-      - name: Setup SSH
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Add server to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       # 把产物同步到服务器 /root/cortex(--delete 清理旧文件;数据/密钥在别处,不受影响)
       - name: Deploy to server
         run: |
-          rsync -az --delete -e "ssh -i ~/.ssh/id_deploy" \
+          rsync -az --delete \
             .next/standalone/ \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/cortex/"
-          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
             "systemctl restart cortex && sleep 2 && systemctl --no-pager status cortex | head -5"
