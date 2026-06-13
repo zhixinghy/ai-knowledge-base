@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     "@lancedb/lancedb",
     "@huggingface/transformers",
     "pdf-parse",
+    "@napi-rs/canvas",
   ],
 
   // production uses DashScope embedding, so the local-BGE stack (transformers +
@@ -20,6 +21,13 @@ const nextConfig: NextConfig = {
       "./node_modules/@huggingface/transformers/**",
       "./node_modules/onnxruntime-node/**",
     ],
+  },
+
+  // pdf-parse → pdfjs loads @napi-rs/canvas dynamically (for DOMMatrix etc.);
+  // tracing misses it, so force-include it (+ its platform binary) in the
+  // standalone bundle for the ingest route.
+  outputFileTracingIncludes: {
+    "/api/ingest": ["./node_modules/@napi-rs/**/*"],
   },
 };
 
