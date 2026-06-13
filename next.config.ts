@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // self-contained build artifact for deployment (server runs node server.js,
-  // no npm install / build on the server)
+  // 自包含的部署产物(服务器直接 node server.js 运行,
+  // 无需在服务器上 npm install / build)
   output: "standalone",
 
-  // native / dynamically-required packages must not be bundled by Turbopack
+  // 原生 / 动态 require 的包不能被 Turbopack 打包
   serverExternalPackages: [
     "@lancedb/lancedb",
     "@huggingface/transformers",
@@ -13,9 +13,8 @@ const nextConfig: NextConfig = {
     "@napi-rs/canvas",
   ],
 
-  // production uses DashScope embedding, so the local-BGE stack (transformers +
-  // onnxruntime, hundreds of MB) is never used at runtime — keep it out of the
-  // standalone bundle.
+  // 线上用 DashScope embedding,所以本地 BGE 那套(transformers +
+  // onnxruntime,几百 MB)运行时根本用不到 —— 把它排除出 standalone 产物。
   outputFileTracingExcludes: {
     "/*": [
       "./node_modules/@huggingface/transformers/**",
@@ -23,13 +22,13 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // pdf-parse → pdfjs loads @napi-rs/canvas dynamically (for DOMMatrix etc.);
-  // tracing misses it, so force-include it (+ its platform binary) in the
-  // standalone bundle for the ingest route.
+  // pdf-parse → pdfjs 会动态加载 @napi-rs/canvas(用于 DOMMatrix 等);
+  // 依赖追踪抓不到它,因此为 ingest 路由强制把它(及其平台二进制)
+  // 打进 standalone 产物。
   outputFileTracingIncludes: {
     "/api/ingest": [
       "./node_modules/@napi-rs/**/*",
-      // pdfjs loads pdf.worker.mjs dynamically — tracing misses it
+      // pdfjs 动态加载 pdf.worker.mjs —— 依赖追踪抓不到它
       "./node_modules/pdfjs-dist/legacy/build/**/*",
     ],
   },

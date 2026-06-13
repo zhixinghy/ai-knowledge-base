@@ -9,6 +9,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { useAuth } from "./auth/auth-context";
 import type { KnowledgeDoc } from "@/lib/types";
 
 interface DocumentsContextValue {
@@ -21,11 +22,11 @@ interface DocumentsContextValue {
 const DocumentsContext = createContext<DocumentsContextValue | null>(null);
 
 /**
- * Single source of truth for the knowledge-base document list, shared by the
- * sidebar and the knowledge page so any change (upload / delete) shows up
- * everywhere instantly. Lives in the workspace shell so it survives navigation.
+ * 知识库文档列表的唯一数据源,由侧边栏和知识库页面共享,这样任何改动
+ *(上传 / 删除)都会立刻在各处生效。挂在 workspace 外壳上,因此跨页面导航时不丢失。
  */
 export function DocumentsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [docs, setDocs] = useState<KnowledgeDoc[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,15 +36,15 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (Array.isArray(data)) setDocs(data);
     } catch {
-      // ignore — keep whatever we have
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // 登录态变化(登录/退出)会改变可见文档,据此重新拉取
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, user?.userId]);
 
   return (
     <DocumentsContext.Provider value={{ docs, loading, setDocs, refresh }}>

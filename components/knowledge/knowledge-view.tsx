@@ -5,6 +5,7 @@ import { UploadZone } from "./upload-zone";
 import { DocumentList } from "./document-list";
 import { ChatIcon, FileIcon, LibraryIcon } from "../icons";
 import { useDocuments } from "../documents-context";
+import { useAuth } from "../auth/auth-context";
 import type { Collection, KnowledgeDoc } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ const LIBRARIES: {
 
 export function KnowledgeView() {
   const { docs, loading, setDocs } = useDocuments();
+  const { openAuthModal } = useAuth();
   const [collection, setCollection] = useState<Collection>("docs");
   const [error, setError] = useState<string | null>(null);
   const aliveRef = useRef(true);
@@ -70,6 +72,8 @@ export function KnowledgeView() {
               const body = (await res.json().catch(() => null)) as
                 | { error?: string }
                 | null;
+              // 试用额度用尽 → 弹登录/注册框
+              if (res.status === 401) openAuthModal("register");
               throw new Error(body?.error || `HTTP ${res.status}`);
             }
             const doc = (await res.json()) as KnowledgeDoc;
@@ -78,7 +82,7 @@ export function KnowledgeView() {
           } catch (e) {
             if (!aliveRef.current) return;
             setError(
-              `「${file.name}」摄入失败:${e instanceof Error ? e.message : "未知错误"}`,
+              `「${file.name}」入库失败:${e instanceof Error ? e.message : "未知错误"}`,
             );
             setDocs((prev) =>
               prev.map((d) => (d.id === tempId ? { ...d, status: "failed" } : d)),
@@ -87,7 +91,7 @@ export function KnowledgeView() {
         }
       })();
     },
-    [collection, setDocs],
+    [collection, setDocs, openAuthModal],
   );
 
   const onDelete = useCallback(

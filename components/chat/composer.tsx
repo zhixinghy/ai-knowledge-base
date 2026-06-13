@@ -19,7 +19,6 @@ export function Composer({
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
-  // auto-grow
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

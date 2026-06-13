@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/components/auth/auth-context";
 import "./globals.css";
 
 const hanken = Hanken_Grotesk({
@@ -24,7 +25,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Cortex · 企业知识库智能助手",
   description:
-    "基于 RAG + Agent 的企业知识库问答平台 —— PDF 文档摄入、多场景问答、工具增强,一套内核四种场景。",
+    "基于 RAG + Agent 的企业知识库问答平台 —— PDF 文档入库、多场景问答、工具增强,一套内核四种场景。",
 };
 
 // Set theme before paint to avoid flash. Defaults to dark.
@@ -54,7 +55,9 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="grain min-h-full">{children}</body>
+      <body className="grain min-h-full">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

@@ -27,7 +27,7 @@ function ToolCallRow({ call }: { call: ToolCall }) {
   const [open, setOpen] = useState(false);
 
   const hasResult = !!call.result && !running;
-  // only long results are worth a dedicated expand/collapse (e.g. web search)
+  // 只有较长的结果才值得单独做展开/收起(例如联网搜索)
   const expandable = hasResult && (call.result?.length ?? 0) > 48;
 
   const header = (

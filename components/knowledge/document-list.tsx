@@ -27,9 +27,13 @@ export function DocumentList({
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium">{doc.name}</span>
-                <StatusBadge status={doc.status} />
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate text-sm font-medium">
+                  {doc.name}
+                </span>
+                <span className="shrink-0">
+                  <StatusBadge status={doc.status} />
+                </span>
               </div>
 
               {busy ? (
@@ -42,7 +46,7 @@ export function DocumentList({
                   </span>
                 </div>
               ) : (
-                <div className="mt-1 flex items-center gap-2 font-mono text-[11px] text-faint">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-faint">
                   <span>{formatBytes(doc.size)}</span>
                   <span className="text-border-strong">·</span>
                   <span>{doc.chunks} 块</span>
@@ -58,7 +62,7 @@ export function DocumentList({
               type="button"
               onClick={() => onDelete(doc.id)}
               aria-label={`删除 ${doc.name}`}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 group-hover:opacity-100"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint opacity-100 transition-all hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
             >
               <TrashIcon width={16} height={16} />
             </button>

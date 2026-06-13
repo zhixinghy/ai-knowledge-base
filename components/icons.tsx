@@ -182,7 +182,7 @@ export function ToolIcon({
   return <Cmp {...props} />;
 }
 
-/** Brand glyph — a geometric "C" mark on a rounded accent tile. */
+/** 品牌图标 —— 圆角强调色方块上的几何「C」标记。 */
 export function Logo({ className }: { className?: string }) {
   return (
     <svg

@@ -1,12 +1,12 @@
 import { PDFParse } from "pdf-parse";
 
 export interface PdfPage {
-  /** 1-based page number */
+  /** 页码,从 1 开始 */
   page: number;
   text: string;
 }
 
-/** Parse a PDF buffer into per-page text (page numbers preserved for citations). */
+/** 把 PDF buffer 解析为逐页文本(保留页码用于标注出处)。 */
 export async function parsePdf(
   buffer: Buffer,
 ): Promise<{ pages: PdfPage[]; total: number }> {

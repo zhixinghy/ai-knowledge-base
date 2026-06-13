@@ -34,13 +34,13 @@ export function ThemeToggle({ className }: { className?: string }) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    // No View Transitions support (or reduced motion) → plain swap.
+    // 不支持 View Transitions(或用户偏好减少动效)→ 直接切换。
     if (!doc.startViewTransition || prefersReduced) {
       apply();
       return;
     }
 
-    // Anchor the circular reveal at the click point.
+    // 以点击位置作为圆形揭开动画的锚点。
     root.style.setProperty("--vt-x", `${e.clientX}px`);
     root.style.setProperty("--vt-y", `${e.clientY}px`);
 

@@ -1,4 +1,4 @@
-/** True under `next dev`. Gate dev-only detail (verbose errors, debug info). */
+/** 在 `next dev` 下为 true。用于开关仅开发环境的细节(详细报错、调试信息)。 */
 export const isDev = process.env.NODE_ENV === "development";
 
 export function cn(...parts: Array<string | false | null | undefined>): string {

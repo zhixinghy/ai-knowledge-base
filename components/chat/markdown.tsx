@@ -8,10 +8,9 @@ import { CheckIcon, CopyIcon } from "../icons";
 const SHIKI_THEMES = { light: "github-light", dark: "github-dark" } as const;
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
-  // Highlighted result is tagged with the exact code it was produced from, so
-  // we only ever show it when it matches the *current* code. While streaming,
-  // `code` keeps changing → we show the plain (always-current) text instead,
-  // and (debounced) re-run Shiki once the stream settles.
+  // 高亮结果会标记它是基于哪段代码生成的,因此只在它与「当前」代码一致时才展示。
+  // 流式输出过程中 `code` 会不断变化 → 此时改为展示纯文本(始终是最新的),
+  // 待流式稳定后再(防抖)重新跑一次 Shiki。
   const [hl, setHl] = useState<{ code: string; html: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -81,7 +80,7 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
 }
 
 const components: Components = {
-  // unwrap <pre>; CodeBlock renders shiki's own <pre>
+  // 去掉外层 <pre>;CodeBlock 会渲染 shiki 自己的 <pre>
   pre: ({ children }) => <>{children}</>,
   code({ className, children, node: _node, ...rest }) {
     const text = String(children).replace(/\n$/, "");

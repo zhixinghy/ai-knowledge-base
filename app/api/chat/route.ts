@@ -7,9 +7,9 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
-import { embedQuery } from "@/lib/embedding";
-import { search } from "@/lib/vectorstore";
+import { retrieve } from "@/lib/retrieve";
 import { agentTools } from "@/lib/tools";
+import { consumeAnonQuota, resolveOwnerId } from "@/lib/auth";
 import type { ChatMode, Source } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -57,18 +57,28 @@ export async function POST(req: Request) {
     mode?: ChatMode;
   };
 
+  // 匿名试用额度:用尽则回 401,前端据此弹登录框
+  const quota = await consumeAnonQuota();
+  if (!quota.ok) {
+    return Response.json(
+      { error: "试用次数已用完,请注册或登录后继续", code: "QUOTA" },
+      { status: 401 },
+    );
+  }
+  const ownerId = await resolveOwnerId();
+
   let system = SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.docs;
   let sources: Source[] = [];
 
-  // --- read path: retrieve relevant chunks ---
+  // --- 读取路径:召回相关分块 ---
   if (RAG_MODES.has(mode)) {
     const query = lastUserText(messages);
     if (query) {
       try {
-        const vector = await embedQuery(query);
-        // docs mode → user's library; support mode → support library
+        // docs 模式 → 用户自己的知识库(按 ownerId 隔离);support 模式 → 共享客服知识库
         const collection = mode === "support" ? "support" : "docs";
-        sources = await search(vector, 5, collection);
+        // retrieve() 内部:向量召回 → (有 DashScope key 时)gte-rerank 精排 → top 5
+        sources = await retrieve(query, { collection, topK: 5, ownerId });
       } catch (err) {
         console.error("[/api/chat] retrieval failed", err);
       }
@@ -83,7 +93,7 @@ export async function POST(req: Request) {
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
-      // send citations first so the UI can attach them to this message
+      // 先发送引用出处,让 UI 能把它们挂到这条消息上
       if (sources.length > 0) {
         writer.write({ type: "data-sources", id: "sources", data: sources });
       }

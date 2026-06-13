@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChatIcon, LibraryIcon, Logo, PlusIcon } from "./icons";
 import { ThemeToggle } from "./theme-toggle";
 import { useDocuments } from "./documents-context";
+import { useAuth } from "./auth/auth-context";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -15,6 +16,7 @@ const NAV = [
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { docs } = useDocuments();
+  const { user, loading, openAuthModal, logout } = useAuth();
 
   return (
     <div className="flex h-full flex-col bg-surface">
@@ -90,18 +92,55 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Link
             href="/knowledge"
             onClick={onNavigate}
-            className="mt-2 mb-4 flex items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+            className="mt-2 mb-4 flex items-center justify-center px-3 py-2 text-xs text-faint transition-colors hover:text-accent"
           >
-            <PlusIcon width={16} height={16} />
-            上传 PDF
+            去上传
           </Link>
         )}
       </div>
 
-      {/* footer */}
-      <div className="flex items-center justify-between border-t border-border px-4 py-3">
-        <span className="text-xs text-faint">主题</span>
-        <ThemeToggle />
+      {/* footer:左侧登录信息,右侧主题切换 */}
+      <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+        {loading ? (
+          <div className="h-5 w-24 rounded bg-surface-2/60" />
+        ) : user ? (
+          <>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent">
+                {user.username.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="truncate text-sm font-medium">
+                {user.username}
+              </span>
+              {user.role === "admin" && (
+                <span className="shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                  管理员
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="text-xs text-faint transition-colors hover:text-text"
+              >
+                退出
+              </button>
+              <ThemeToggle />
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => openAuthModal("login")}
+              className="truncate text-sm font-medium text-accent transition-opacity hover:opacity-80"
+            >
+              登录 / 注册
+            </button>
+            <ThemeToggle />
+          </>
+        )}
       </div>
     </div>
   );

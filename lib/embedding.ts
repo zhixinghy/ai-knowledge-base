@@ -14,15 +14,15 @@ const LOCAL_MODEL = "Xenova/bge-small-zh-v1.5";
 const DASHSCOPE_MODEL = "text-embedding-v3";
 const DASHSCOPE_DIM = 1024;
 
-/** Active embedding dimensionality (depends on provider). */
+/** 当前 embedding 的维度(取决于 provider)。 */
 export const EMBED_DIM = PROVIDER === "dashscope" ? DASHSCOPE_DIM : 512;
 
-// BGE wants the *query* (not passages) prefixed with this retrieval instruction.
+// BGE 要求给「查询」(而非文档段落)加上这条检索指令前缀。
 const BGE_QUERY_INSTRUCTION = "为这个句子生成表示以用于检索相关文章:";
 
-/* ----------------------------- local (BGE) ----------------------------- */
+/* ----------------------------- 本地 (BGE) ----------------------------- */
 
-// Lazily imported so production (dashscope) never loads onnxruntime.
+// 懒加载,这样线上(dashscope)永远不会加载 onnxruntime。
 let localPipe: Promise<unknown> | null = null;
 async function getLocalPipe() {
   if (!localPipe) {
@@ -44,11 +44,11 @@ async function localEmbed(texts: string[]): Promise<number[][]> {
   return out.tolist();
 }
 
-/* --------------------------- cloud (DashScope) -------------------------- */
+/* --------------------------- 云端 (DashScope) -------------------------- */
 
 const DASHSCOPE_URL =
   "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings";
-const DASHSCOPE_BATCH = 10; // API max inputs per request
+const DASHSCOPE_BATCH = 10; // API 单次请求最多输入条数
 
 async function dashscopeEmbed(texts: string[]): Promise<number[][]> {
   const key = process.env.DASHSCOPE_API_KEY;
@@ -77,7 +77,7 @@ async function dashscopeEmbed(texts: string[]): Promise<number[][]> {
     const json = (await res.json()) as {
       data: { embedding: number[]; index: number }[];
     };
-    // keep input order
+    // 保持输入顺序
     json.data
       .sort((a, b) => a.index - b.index)
       .forEach((d) => all.push(d.embedding));
@@ -85,9 +85,9 @@ async function dashscopeEmbed(texts: string[]): Promise<number[][]> {
   return all;
 }
 
-/* ------------------------------- public -------------------------------- */
+/* ------------------------------- 对外接口 -------------------------------- */
 
-/** Embed passages for storage. Returns one unit vector per input. */
+/** 对文档段落做 embedding 用于入库。每条输入返回一个单位向量。 */
 export async function embed(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
   return PROVIDER === "dashscope"
@@ -95,7 +95,7 @@ export async function embed(texts: string[]): Promise<number[][]> {
     : localEmbed(texts);
 }
 
-/** Embed a single search query (BGE gets its retrieval instruction prefix). */
+/** 对单条搜索查询做 embedding(BGE 会加上检索指令前缀)。 */
 export async function embedQuery(query: string): Promise<number[]> {
   if (PROVIDER === "dashscope") {
     const [v] = await dashscopeEmbed([query]);

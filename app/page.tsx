@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthNav } from "@/components/auth/auth-nav";
 import {
   ArrowRightIcon,
   ChatIcon,
@@ -47,6 +48,7 @@ export default function LandingPage() {
             >
               知识库
             </Link>
+            <AuthNav />
             <ThemeToggle className="mr-1" />
             <Link
               href="/chat"
@@ -159,7 +161,7 @@ export default function LandingPage() {
             <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-border-strong lg:col-span-3">
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  { icon: FileIcon, t: "摄入", d: "上传 → 解析 → 切块" },
+                  { icon: FileIcon, t: "入库", d: "上传 → 解析 → 切块" },
                   { icon: DatabaseIcon, t: "索引", d: "向量化 → 持久化存储" },
                   { icon: SearchIcon, t: "检索", d: "提问时召回相关片段" },
                   { icon: GlobeIcon, t: "生成", d: "流式作答 + 出处" },
@@ -192,6 +194,9 @@ export default function LandingPage() {
             <span>Cortex · 企业知识库智能助手</span>
             <span className="font-mono">RAG + Agent · Next.js</span>
           </div>
+          <p className="mt-4 text-center font-mono text-xs tracking-wider text-faint/70">
+            by zhixinghy
+          </p>
         </footer>
       </div>
     </div>

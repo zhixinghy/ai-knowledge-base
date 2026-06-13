@@ -8,14 +8,15 @@ import { Message } from "./message";
 import { ModeSwitcher } from "./mode-switcher";
 import { Logo, SparkleIcon } from "../icons";
 import { MODES } from "@/lib/mock-data";
+import { useAuth } from "../auth/auth-context";
 import type { ChatMessage, ChatMode, Source, ToolCall } from "@/lib/types";
 
-/** Flatten a UIMessage's text parts into a single string for rendering. */
+/** 把一条 UIMessage 的文本片段拼成单个字符串用于渲染。 */
 function textOf(m: UIMessage): string {
   return m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
-/** Pull the retrieved sources the server streamed as a `data-sources` part. */
+/** 取出服务端以 `data-sources` 片段流式下发的检索出处。 */
 function sourcesOf(m: UIMessage): Source[] | undefined {
   const part = m.parts.find((p) => p.type === "data-sources") as
     | { data?: Source[] }
@@ -41,7 +42,7 @@ const TOOL_META: Record<
   web_search: { icon: "globe", label: (i) => `联网搜索:「${i?.query ?? ""}」` },
 };
 
-/** Map the AI SDK tool parts on a message to our visualization model. */
+/** 把消息上的 AI SDK 工具片段映射成我们的可视化模型。 */
 function toolCallsOf(m: UIMessage): ToolCall[] | undefined {
   const calls: ToolCall[] = [];
   for (const p of m.parts) {
@@ -78,13 +79,23 @@ export function ChatView() {
   const [mode, setMode] = useState<ChatMode>("docs");
   const [input, setInput] = useState("");
 
+  const { openAuthModal } = useAuth();
+
   const { messages, sendMessage, setMessages, stop, status, error } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      // 试用额度用尽时后端回 401,这里拦下并弹出登录/注册框
+      fetch: async (input, init) => {
+        const res = await fetch(input as RequestInfo, init);
+        if (res.status === 401) openAuthModal("register");
+        return res;
+      },
+    }),
   });
 
   const busy = status === "submitted" || status === "streaming";
 
-  // switching mode = switching context (persona + knowledge base) → reset chat
+  // 切换模式 = 切换上下文(人设 + 知识库)→ 清空对话
   function handleModeChange(next: ChatMode) {
     if (next === mode) return;
     if (busy) void stop();
@@ -109,7 +120,7 @@ export function ChatView() {
   const activeMode = MODES.find((m) => m.id === mode)!;
   const empty = messages.length === 0;
 
-  // map AI SDK messages → our render model; append a pending bubble while waiting
+  // 把 AI SDK 消息映射成我们的渲染模型;等待时追加一个 pending 气泡
   const rendered: ChatMessage[] = messages
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m, i, arr) => ({
@@ -167,6 +178,8 @@ export function ChatView() {
           />
           <p className="mt-2 text-center text-[11px] text-faint">
             内容由 AI 生成,可能有误,请注意甄别
+            <span className="mx-1.5 text-faint/50">·</span>
+            <span className="font-mono text-faint/70">by zhixinghy</span>
           </p>
         </div>
       </div>

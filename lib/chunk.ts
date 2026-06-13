@@ -2,23 +2,22 @@ import type { PdfPage } from "./pdf";
 
 export interface Chunk {
   text: string;
-  /** page the chunk came from (for citations) */
+  /** 分块来自第几页(用于标注出处) */
   page: number;
-  /** sequential index across the whole document */
+  /** 在整个文档中的连续序号 */
   index: number;
 }
 
 interface ChunkOptions {
-  /** target chunk length in characters */
+  /** 目标分块长度(字符数) */
   size?: number;
-  /** overlap between consecutive chunks, in characters */
+  /** 相邻分块之间的重叠字符数 */
   overlap?: number;
 }
 
 /**
- * Split per-page text into overlapping chunks. Chunks never span pages, so each
- * one keeps an accurate page number for source attribution. Character-based
- * (works well for Chinese, which lacks word boundaries).
+ * 把逐页文本切成带重叠的分块。分块不会跨页,因此每块都能保留准确的页码用于标注
+ * 出处。按字符切分(对没有词边界的中文也适用)。
  */
 export function chunkPages(
   pages: PdfPage[],

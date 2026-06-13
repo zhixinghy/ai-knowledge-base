@@ -2,12 +2,12 @@ import { tool } from "ai";
 import { z } from "zod";
 import { isDev } from "./utils";
 
-/** Evaluate a basic arithmetic expression safely (digits/operators only). */
+/** 安全地求值一个基础算术表达式(仅允许数字/运算符)。 */
 function safeEval(expr: string): number {
   if (!/^[0-9+\-*/().%\s]+$/.test(expr)) {
     throw new Error("表达式包含非法字符,只支持数字与 + - * / ( ) %");
   }
-  // charset is restricted to math symbols above, so this cannot run code
+  // 字符集已被上面限制为数学符号,因此这里不可能执行任意代码
   const value = Function(`"use strict"; return (${expr});`)() as unknown;
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error("计算结果无效");
@@ -21,7 +21,7 @@ const calculator = tool({
   inputSchema: z.object({
     expression: z
       .string()
-      .describe("要计算的算术表达式,例如 1280 * 7.2 或 (99+1)/4"),
+      .describe("要计算的算术表达式,例如 1024 * 7.2 或 (99+1)/4"),
   }),
   execute: async ({ expression }) => {
     const result = safeEval(expression);
@@ -38,7 +38,7 @@ const webSearch = tool({
   execute: async ({ query }) => {
     const apiKey = process.env.TAVILY_API_KEY;
     if (!apiKey) {
-      // don't leak internal config (env var name) to the model/user in prod
+      // 线上环境不要把内部配置(环境变量名)泄露给模型/用户
       const reason = isDev
         ? "(联网搜索未配置:缺少 TAVILY_API_KEY)"
         : "(联网搜索暂不可用)";
@@ -73,7 +73,7 @@ const webSearch = tool({
   },
 });
 
-/** Tools available to the "工具增强" (tools) chat mode. */
+/** 「工具增强」(tools)聊天模式下可用的工具。 */
 export const agentTools = {
   calculator,
   web_search: webSearch,
