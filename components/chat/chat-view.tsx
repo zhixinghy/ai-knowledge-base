@@ -78,11 +78,20 @@ export function ChatView() {
   const [mode, setMode] = useState<ChatMode>("docs");
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, setMessages, stop, status, error } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
 
   const busy = status === "submitted" || status === "streaming";
+
+  // switching mode = switching context (persona + knowledge base) → reset chat
+  function handleModeChange(next: ChatMode) {
+    if (next === mode) return;
+    if (busy) void stop();
+    setMessages([]);
+    setInput("");
+    setMode(next);
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -122,7 +131,7 @@ export function ChatView() {
     <div className="flex h-full flex-col">
       {/* top bar: mode switcher */}
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
-        <ModeSwitcher mode={mode} onChange={setMode} />
+        <ModeSwitcher mode={mode} onChange={handleModeChange} />
         <span className="hidden truncate text-xs text-faint md:block">
           {activeMode.tagline}
         </span>
@@ -157,7 +166,7 @@ export function ChatView() {
             placeholder={`向「${activeMode.label}」提问…`}
           />
           <p className="mt-2 text-center text-[11px] text-faint">
-            由 DeepSeek 生成 · 文档检索(RAG)将在后续接入
+            内容由 AI 生成,可能有误,请注意甄别
           </p>
         </div>
       </div>

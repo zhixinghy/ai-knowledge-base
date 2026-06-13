@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChatIcon,
-  LibraryIcon,
-  Logo,
-  PlusIcon,
-  SettingsIcon,
-} from "./icons";
+import { ChatIcon, LibraryIcon, Logo, PlusIcon } from "./icons";
 import { ThemeToggle } from "./theme-toggle";
 import { useDocuments } from "./documents-context";
 import { cn } from "@/lib/utils";
@@ -106,13 +100,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* footer */}
       <div className="flex items-center justify-between border-t border-border px-4 py-3">
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          <SettingsIcon width={18} height={18} />
-          设置
-        </button>
+        <span className="text-xs text-faint">主题</span>
         <ThemeToggle />
       </div>
     </div>
