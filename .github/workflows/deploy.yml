@@ -23,11 +23,12 @@ jobs:
       - name: Build (Next standalone)
         run: npm run build
 
-      # standalone 默认不含 public 和 static,拷进去
+      # standalone 默认不含 public 和 static,拷进去;迁移脚本也一并带上
       - name: Assemble bundle
         run: |
           cp -r public .next/standalone/ 2>/dev/null || true
           cp -r .next/static .next/standalone/.next/
+          cp -r scripts .next/standalone/ 2>/dev/null || true
 
       # 私钥以 base64 单行存在 SSH_KEY_B64,解码还原为精确字节
       - name: Deploy to server
