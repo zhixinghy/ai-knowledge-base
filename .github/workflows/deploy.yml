@@ -23,35 +23,24 @@ jobs:
       - name: Build (Next standalone)
         run: npm run build
 
-      # standalone 默认不含 public 和 static,拷进去后打包成一个 tar
+      # standalone 默认不含 public 和 static,拷进去
       - name: Assemble bundle
         run: |
           cp -r public .next/standalone/ 2>/dev/null || true
           cp -r .next/static .next/standalone/.next/
-          tar czf cortex.tar.gz -C .next/standalone .
 
-      # 用 appleboy(golang,key 解析宽容)上传产物
-      - name: Upload bundle
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: cortex.tar.gz
-          target: /root
-
-      # 解包到 /root/cortex 并重启服务(数据/密钥在别处,不受影响)
-      - name: Extract & restart
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            rm -rf /root/cortex && mkdir -p /root/cortex
-            tar xzf /root/cortex.tar.gz -C /root/cortex
-            rm -f /root/cortex.tar.gz
-            systemctl restart cortex
-            sleep 2
-            systemctl --no-pager status cortex | head -6
+      # 私钥以 base64 单行存在 SSH_KEY_B64,解码还原为精确字节
+      - name: Deploy to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # 打包产物 → 经 ssh 管道传到服务器 → 解包 → 重启
+          tar czf - -C .next/standalone . | ssh -i ~/.ssh/id_deploy \
+            "$SSH_USER@$SSH_HOST" \
+            "rm -rf /root/cortex && mkdir -p /root/cortex && tar xzf - -C /root/cortex && systemctl restart cortex && sleep 2 && systemctl --no-pager status cortex | head -6"
