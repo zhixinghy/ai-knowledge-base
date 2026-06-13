@@ -33,7 +33,7 @@ const LIBRARIES: {
 
 export function KnowledgeView() {
   const { docs, loading, setDocs } = useDocuments();
-  const { openAuthModal } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const [collection, setCollection] = useState<Collection>("docs");
   const [error, setError] = useState<string | null>(null);
   const aliveRef = useRef(true);
@@ -113,6 +113,9 @@ export function KnowledgeView() {
     [docs, setDocs],
   );
 
+  const isAdmin = user?.role === "admin";
+  // 客服库是公共库,仅管理员可上传/删除
+  const canUpload = collection !== "support" || isAdmin;
   const active = LIBRARIES.find((l) => l.id === collection)!;
   const inCollection = docs.filter((d) => d.collection === collection);
   const ready = inCollection.filter((d) => d.status === "ready");
@@ -165,9 +168,15 @@ export function KnowledgeView() {
           <Stat value={totalPages} label="总页数" />
         </div>
 
-        <div className="mt-6">
-          <UploadZone onFiles={onFiles} />
-        </div>
+        {canUpload ? (
+          <div className="mt-6">
+            <UploadZone onFiles={onFiles} />
+          </div>
+        ) : (
+          <p className="mt-6 rounded-xl border border-border bg-surface-2/40 px-4 py-3 text-sm text-faint">
+            客服库为公共知识库,仅管理员可维护。
+          </p>
+        )}
 
         {error && (
           <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-500">
@@ -188,7 +197,11 @@ export function KnowledgeView() {
           {loading ? (
             <LoadingDocs />
           ) : inCollection.length > 0 ? (
-            <DocumentList docs={inCollection} onDelete={onDelete} />
+            <DocumentList
+              docs={inCollection}
+              onDelete={onDelete}
+              isAdmin={isAdmin}
+            />
           ) : (
             <EmptyDocs />
           )}

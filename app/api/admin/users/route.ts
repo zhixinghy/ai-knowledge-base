@@ -1,14 +1,31 @@
-import { getCurrentUser } from "@/lib/auth";
-import { countUsers, listUsers } from "@/lib/users";
+import { requireAdmin } from "@/lib/auth";
+import { countUsers, deleteUser, listUsers } from "@/lib/users";
+import { countDocsByOwner, deleteDocumentsByOwner } from "@/lib/vectorstore";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) {
-    return Response.json({ error: "未登录" }, { status: 401 });
+  const guard = await requireAdmin();
+  if ("error" in guard) return guard.error;
+
+  const [count, users, docCounts] = await Promise.all([
+    countUsers(),
+    listUsers(),
+    countDocsByOwner(),
+  ]);
+  return Response.json({ count, users, docCounts });
+}
+
+export async function DELETE(req: Request) {
+  const guard = await requireAdmin();
+  if ("error" in guard) return guard.error;
+
+  const { id } = (await req.json()) as { id?: string };
+  if (!id) return Response.json({ error: "缺少 id" }, { status: 400 });
+  if (id === guard.user.userId) {
+    return Response.json({ error: "不能删除自己" }, { status: 400 });
   }
-  if (user.role !== "admin") {
-    return Response.json({ error: "无权限" }, { status: 403 });
-  }
-  const [count, users] = await Promise.all([countUsers(), listUsers()]);
-  return Response.json({ count, users });
+
+  // 级联:先删该用户名下的文档与分块,再删账号
+  await deleteDocumentsByOwner(id);
+  await deleteUser(id);
+  return Response.json({ ok: true });
 }

@@ -55,18 +55,26 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
         <span className="font-mono text-[11px] uppercase tracking-wider text-faint">
           {lang || "text"}
         </span>
-        <button
-          type="button"
-          onClick={copy}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted transition-colors hover:bg-surface-2 hover:text-text"
-        >
-          {copied ? (
-            <CheckIcon width={13} height={13} className="text-accent" />
-          ) : (
-            <CopyIcon width={13} height={13} />
+        <div className="group relative">
+          <button
+            type="button"
+            onClick={copy}
+            aria-label="复制代码"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            {copied ? (
+              <CheckIcon width={14} height={14} className="text-accent" />
+            ) : (
+              <CopyIcon width={14} height={14} />
+            )}
+          </button>
+          {/* 仅未复制时 hover 显示提示;反色气泡,明暗主题都清晰 */}
+          {!copied && (
+            <span className="pointer-events-none absolute right-0 top-full z-10 mt-1 whitespace-nowrap rounded-md bg-text px-2 py-1 text-[11px] font-medium text-bg opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+              复制
+            </span>
           )}
-          {copied ? "已复制" : "复制"}
-        </button>
+        </div>
       </div>
       {showHighlighted ? (
         <div dangerouslySetInnerHTML={{ __html: hl.html }} />

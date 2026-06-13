@@ -136,6 +136,30 @@ export function deleteDocument(
   });
 }
 
+/** 删除某 owner 名下的全部文档与分块(用户注销时级联清理)。 */
+export function deleteDocumentsByOwner(ownerId: string): Promise<void> {
+  return serialize(async () => {
+    const safe = escape(ownerId);
+    const docs = await openOrNull(DOCS);
+    if (docs) await docs.delete(`ownerId = '${safe}'`);
+    const chunks = await openOrNull(CHUNKS);
+    if (chunks) await chunks.delete(`ownerId = '${safe}'`);
+  });
+}
+
+/** 统计每个 owner 的文档数(管理员页展示用)。 */
+export async function countDocsByOwner(): Promise<Record<string, number>> {
+  const tbl = await openOrNull(DOCS);
+  if (!tbl) return {};
+  const rows = (await tbl.query().limit(1_000_000).toArray()) as DocMeta[];
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    const k = r.ownerId ?? "";
+    out[k] = (out[k] ?? 0) + 1;
+  }
+  return out;
+}
+
 // 余弦相似度下限:丢弃弱/不相关的匹配,避免引用那些其实答不了问题的分块。
 // 针对 bge-small-zh 在「中文查询 ↔ 中文段落」上标定:
 //   相关 ≈ 0.43–0.55,不相关 ≈ 0.31–0.33 → 0.38 能干净地把两者分开。

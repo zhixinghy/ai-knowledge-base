@@ -34,14 +34,14 @@ export default function LandingPage() {
 
       <div className="relative z-10">
         {/* nav */}
-        <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+        <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6 sm:py-6">
           <div className="flex items-center gap-2.5">
             <Logo />
             <span className="font-serif text-xl font-semibold tracking-tight">
               Cortex
             </span>
           </div>
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-2">
             <Link
               href="/knowledge"
               className="hidden rounded-lg px-3.5 py-2 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text sm:block"
@@ -49,13 +49,14 @@ export default function LandingPage() {
               知识库
             </Link>
             <AuthNav />
-            <ThemeToggle className="mr-1" />
+            <ThemeToggle />
             <Link
               href="/chat"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover sm:px-4"
             >
-              进入工作台
-              <ArrowRightIcon width={16} height={16} />
+              <span className="sm:hidden">工作台</span>
+              <span className="hidden sm:inline">进入工作台</span>
+              <ArrowRightIcon width={16} height={16} className="hidden sm:block" />
             </Link>
           </nav>
         </header>

@@ -38,6 +38,8 @@ yarn-error.log*
 
 # local vector store (LanceDB persistent data)
 /.lancedb
+# 客服语料生成的 PDF(由 docs/support/*.md 经 md2pdf 生成,不入库)
+/docs/support/pdf/
 # dev server log
 /dev.log
 

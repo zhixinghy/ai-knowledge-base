@@ -128,6 +128,14 @@ export async function countUsers(): Promise<number> {
   return tbl ? tbl.countRows() : 0;
 }
 
+/** 删除用户(按 id)。文档级联清理由调用方负责。 */
+export async function deleteUser(id: string): Promise<void> {
+  return serialize(async () => {
+    const tbl = await openUsers();
+    if (tbl) await tbl.delete(`id = '${escape(id)}'`);
+  });
+}
+
 /** 用户名单(脱敏,最新在前)。 */
 export async function listUsers(): Promise<PublicUser[]> {
   const tbl = await openUsers();

@@ -8,10 +8,10 @@ import {
   readSession,
   type SessionUser,
 } from "./session";
+import { getAnonQuota } from "./settings";
 
 const AID = "aid"; // 匿名身份 id(cookie)
 const AQ = "aq"; // 匿名已用额度(签名 cookie)
-const ANON_QUOTA = Number(process.env.ANON_QUOTA ?? 5);
 const YEAR = 365 * 24 * 60 * 60;
 const MONTH = 30 * 24 * 60 * 60;
 
@@ -33,6 +33,20 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 /** 是否管理员。 */
 export async function isAdmin(): Promise<boolean> {
   return (await getCurrentUser())?.role === "admin";
+}
+
+/**
+ * 管理员接口守卫:未登录返回 401、非管理员返回 403。
+ * 用法:`const g = await requireAdmin(); if ("error" in g) return g.error;`
+ */
+export async function requireAdmin(): Promise<
+  { user: SessionUser } | { error: Response }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { error: Response.json({ error: "未登录" }, { status: 401 }) };
+  if (user.role !== "admin")
+    return { error: Response.json({ error: "无权限" }, { status: 403 }) };
+  return { user };
 }
 
 /**
@@ -73,11 +87,12 @@ export async function consumeAnonQuota(): Promise<QuotaResult> {
   const user = await getCurrentUser();
   if (user) return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY };
 
+  const limit = await getAnonQuota();
   const used = await getAnonUsage();
-  if (used >= ANON_QUOTA) return { ok: false, used, limit: ANON_QUOTA };
+  if (used >= limit) return { ok: false, used, limit };
 
   const next = used + 1;
   const cookieStore = await cookies();
   cookieStore.set(AQ, await encrypt({ n: next }), cookieOpts(MONTH));
-  return { ok: true, used: next, limit: ANON_QUOTA };
+  return { ok: true, used: next, limit };
 }

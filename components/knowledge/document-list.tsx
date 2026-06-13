@@ -8,14 +8,19 @@ import { formatBytes, relativeTime } from "@/lib/utils";
 export function DocumentList({
   docs,
   onDelete,
+  isAdmin = false,
 }: {
   docs: KnowledgeDoc[];
   onDelete: (id: string) => void;
+  /** 是否管理员;客服库文档只有管理员能删,普通用户不显示删除按钮 */
+  isAdmin?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border">
       {docs.map((doc, i) => {
         const busy = doc.status === "parsing" || doc.status === "indexing";
+        // 客服库(共享)仅管理员可删;自己的文档库可删
+        const canDelete = doc.collection !== "support" || isAdmin;
         return (
           <div
             key={doc.id}
@@ -58,14 +63,16 @@ export function DocumentList({
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => onDelete(doc.id)}
-              aria-label={`删除 ${doc.name}`}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint opacity-100 transition-all hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-            >
-              <TrashIcon width={16} height={16} />
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(doc.id)}
+                aria-label={`删除 ${doc.name}`}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint opacity-100 transition-all hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              >
+                <TrashIcon width={16} height={16} />
+              </button>
+            )}
           </div>
         );
       })}
