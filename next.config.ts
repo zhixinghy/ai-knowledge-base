@@ -27,7 +27,11 @@ const nextConfig: NextConfig = {
   // tracing misses it, so force-include it (+ its platform binary) in the
   // standalone bundle for the ingest route.
   outputFileTracingIncludes: {
-    "/api/ingest": ["./node_modules/@napi-rs/**/*"],
+    "/api/ingest": [
+      "./node_modules/@napi-rs/**/*",
+      // pdfjs loads pdf.worker.mjs dynamically — tracing misses it
+      "./node_modules/pdfjs-dist/legacy/build/**/*",
+    ],
   },
 };
 
