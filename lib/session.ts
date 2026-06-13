@@ -3,16 +3,23 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
 
 // 无状态 session:HS256 JWT 存进 httpOnly cookie。密钥来自 SESSION_SECRET。
-// dev 下允许用固定 fallback,方便本地起步;线上缺密钥直接报错,避免裸奔。
-const SECRET =
-  process.env.SESSION_SECRET ||
-  (process.env.NODE_ENV !== "production"
-    ? "dev-insecure-session-secret-change-me"
-    : "");
-if (!SECRET) {
-  throw new Error("缺少 SESSION_SECRET,无法签发会话");
+// dev 下允许用固定 fallback,方便本地起步;线上缺密钥才报错。
+// 注意:密钥「用时才解析」(getKey),不在模块加载时检查 —— 否则 next build
+// 收集页面数据时 import 本模块就会抛错(CI 构建环境没有 SESSION_SECRET)。
+let cachedKey: Uint8Array | null = null;
+function getKey(): Uint8Array {
+  if (cachedKey) return cachedKey;
+  const secret =
+    process.env.SESSION_SECRET ||
+    (process.env.NODE_ENV !== "production"
+      ? "dev-insecure-session-secret-change-me"
+      : "");
+  if (!secret) {
+    throw new Error("缺少 SESSION_SECRET,无法签发会话");
+  }
+  cachedKey = new TextEncoder().encode(secret);
+  return cachedKey;
 }
-const KEY = new TextEncoder().encode(SECRET);
 
 const COOKIE = "session";
 const MAX_AGE = 7 * 24 * 60 * 60; // 7 天(秒)
@@ -31,13 +38,13 @@ export async function encrypt(payload: JWTPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(KEY);
+    .sign(getKey());
 }
 
 export async function decrypt(token?: string): Promise<JWTPayload | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, KEY, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, getKey(), { algorithms: ["HS256"] });
     return payload;
   } catch {
     return null;
