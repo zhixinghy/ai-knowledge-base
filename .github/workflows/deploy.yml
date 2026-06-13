@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches: [main]
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -23,27 +23,35 @@ jobs:
       - name: Build (Next standalone)
         run: npm run build
 
-      # standalone 默认不含 public 和 static,手动拷进去
-      - name: Assemble standalone bundle
+      # standalone 默认不含 public 和 static,拷进去后打包成一个 tar
+      - name: Assemble bundle
         run: |
           cp -r public .next/standalone/ 2>/dev/null || true
           cp -r .next/static .next/standalone/.next/
+          tar czf cortex.tar.gz -C .next/standalone .
 
-      - name: Load SSH key
-        uses: webfactory/ssh-agent@v0.9.1
+      # 用 appleboy(golang,key 解析宽容)上传产物
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: cortex.tar.gz
+          target: /root
 
-      - name: Add server to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-
-      # 把产物同步到服务器 /root/cortex(--delete 清理旧文件;数据/密钥在别处,不受影响)
-      - name: Deploy to server
-        run: |
-          rsync -az --delete \
-            .next/standalone/ \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/root/cortex/"
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "systemctl restart cortex && sleep 2 && systemctl --no-pager status cortex | head -5"
+      # 解包到 /root/cortex 并重启服务(数据/密钥在别处,不受影响)
+      - name: Extract & restart
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            rm -rf /root/cortex && mkdir -p /root/cortex
+            tar xzf /root/cortex.tar.gz -C /root/cortex
+            rm -f /root/cortex.tar.gz
+            systemctl restart cortex
+            sleep 2
+            systemctl --no-pager status cortex | head -6
