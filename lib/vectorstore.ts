@@ -4,7 +4,9 @@ import path from "node:path";
 import * as lancedb from "@lancedb/lancedb";
 import type { Collection, KnowledgeDoc, Source } from "./types";
 
-const DB_DIR = path.join(process.cwd(), ".lancedb");
+// Persisted outside the deploy dir in production (set LANCEDB_DIR) so code
+// deploys never wipe the knowledge base. Defaults to ./.lancedb for local dev.
+const DB_DIR = process.env.LANCEDB_DIR || path.join(process.cwd(), ".lancedb");
 const DOCS = "documents";
 const CHUNKS = "chunks";
 
