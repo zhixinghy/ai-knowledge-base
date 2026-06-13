@@ -36,6 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local vector store (LanceDB persistent data)
+/.lancedb
+# dev server log
+/dev.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // native / dynamically-required packages must not be bundled by Turbopack
+  serverExternalPackages: [
+    "@lancedb/lancedb",
+    "@huggingface/transformers",
+    "pdf-parse",
+  ],
 };
 
 export default nextConfig;
