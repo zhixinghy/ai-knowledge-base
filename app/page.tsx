@@ -32,6 +32,15 @@ const PIPELINE = [
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/*
+        预加载 hero 的 3D 场景文件:Spline 运行时是 lazy 懒加载的,默认要等运行时 JS
+        下完、执行后才去 fetch 这个 1.3MB 的 .splinecode,两段大下载串行排队。
+        提前 preload 让它和运行时 JS 并行下载,运行时一就绪即命中缓存,首屏快不少。
+        as="fetch" 且不带 crossOrigin —— 匹配 Spline 内部的同源 fetch(无 cors)。
+        React 19 会把该 <link> 自动提升到 <head> 并去重。
+      */}
+      <link rel="preload" as="fetch" href="/spline/robot.splinecode" />
+
       {/* 氛围层 */}
       <div className="dot-grid pointer-events-none absolute inset-0 opacity-40" />
       <div

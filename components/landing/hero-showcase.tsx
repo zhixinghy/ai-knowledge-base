@@ -122,6 +122,7 @@ export function HeroShowcase() {
         <div className="relative h-72 w-full sm:h-96 lg:h-auto lg:min-h-136 lg:flex-1">
           <SplineScene
             scene="/spline/robot.splinecode"
+            poster="/spline/robot-poster.webp"
             className="h-full w-full"
           />
         </div>
