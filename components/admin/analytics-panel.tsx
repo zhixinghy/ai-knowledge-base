@@ -12,6 +12,7 @@ export interface AnalyticsData {
   topDocs: { name: string; count: number }[];
   blindSpots: { query: string; count: number }[];
   topQueries: { query: string; count: number }[];
+  hasAny: boolean;
 }
 
 const MODE_LABEL: Record<ChatMode, string> = {
@@ -213,30 +214,37 @@ function Card({
 
 // ---- 主面板 ----
 
+type Scope = "user" | "admin" | "all";
+const SCOPES: { k: Scope; label: string }[] = [
+  { k: "user", label: "用户" },
+  { k: "admin", label: "管理员" },
+  { k: "all", label: "合计" },
+];
+
 export function AnalyticsPanel() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  // 默认排除管理员自己的提问(避免自测污染);打开则看全量。
-  const [includeAdmin, setIncludeAdmin] = useState(false);
+  // 统计口径:默认只看用户(排除管理员自测),可切到管理员/合计。
+  const [scope, setScope] = useState<Scope>("user");
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     api
-      .get<AnalyticsData>(
-        `/admin/analytics${includeAdmin ? "?includeAdmin=1" : ""}`,
-      )
+      .get<AnalyticsData>(`/admin/analytics?scope=${scope}`)
       .then((d) => alive && setData(d))
       .catch(() => {})
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [includeAdmin]);
+  }, [scope]);
 
   // 仅首次(还没有任何数据)显示加载占位;切换开关时保留旧图,避免整块闪烁。
   const initialLoading = loading && !data;
   const empty = !loading && (!data || data.total === 0);
+  // 只有「全表都没有日志」才禁用筛选;当前筛选下空(但别的口径有数据)仍可切换。
+  const pickerDisabled = initialLoading || (!!data && !data.hasAny);
 
   return (
     <div className="space-y-4">
@@ -248,19 +256,30 @@ export function AnalyticsPanel() {
               近 90 天 · 共 {data.total} 次提问
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setIncludeAdmin((v) => !v)}
-            aria-pressed={includeAdmin}
-            title="默认排除管理员自己的提问,避免自测数据污染统计"
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-              includeAdmin
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-border text-faint hover:border-accent hover:text-accent"
+          <div
+            className={`inline-flex rounded-full border border-border bg-surface p-0.5 ${
+              pickerDisabled ? "opacity-50" : ""
             }`}
+            role="group"
+            title="按提问者筛选:用户=排除管理员自测,管理员=只看管理员,合计=全部"
           >
-            含管理员提问
-          </button>
+            {SCOPES.map((o) => (
+              <button
+                key={o.k}
+                type="button"
+                disabled={pickerDisabled}
+                onClick={() => setScope(o.k)}
+                aria-pressed={scope === o.k}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                  scope === o.k
+                    ? "bg-accent-soft text-accent"
+                    : "text-faint hover:text-accent"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -272,8 +291,9 @@ export function AnalyticsPanel() {
         <section className="rounded-2xl border border-border bg-surface p-5">
           <p className="text-sm text-faint">
             暂无数据。用户开始提问后,这里会出现活跃度、场景分布、知识库命中率等统计。
-            {!includeAdmin &&
-              "(已排除管理员提问,打开右上「含管理员提问」可看全量。)"}
+            {scope === "user" &&
+              "(当前只看用户提问,右上可切到「管理员」或「合计」。)"}
+            {scope === "admin" && "(当前只看管理员提问。)"}
           </p>
         </section>
       ) : (

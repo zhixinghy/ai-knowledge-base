@@ -109,6 +109,7 @@ export interface AnalyticsResult {
   topDocs: { name: string; count: number }[]; // 被命中引用最多的文档 Top 8
   blindSpots: { query: string; count: number }[]; // 未命中的提问 Top 10(知识盲区)
   topQueries: { query: string; count: number }[]; // 高频提问 Top 10
+  hasAny: boolean; // 保留期内是否有任何日志(过滤前):前端据此判断「全空才禁用筛选」
 }
 
 function dayKey(ts: number): string {
@@ -131,8 +132,11 @@ function topByQuery(
   return [...map.values()].sort((a, b) => b.count - a.count).slice(0, n);
 }
 
+// 统计口径:user=只看普通用户/访客(默认), admin=只看管理员, all=合计。
+export type AnalyticsScope = "user" | "admin" | "all";
+
 export async function getAnalytics(
-  opts: { includeAdmin?: boolean } = {},
+  opts: { scope?: AnalyticsScope } = {},
 ): Promise<AnalyticsResult> {
   const conn = await db();
   const names = await conn.tableNames();
@@ -144,6 +148,7 @@ export async function getAnalytics(
     topDocs: [],
     blindSpots: [],
     topQueries: [],
+    hasAny: false,
   };
   if (!names.includes(LOGS)) return empty;
 
@@ -158,10 +163,17 @@ export async function getAnalytics(
     .where(`ts >= ${cutoff}`)
     .limit(500_000)
     .toArray()) as QueryLogRow[];
-  // 默认排除管理员自己的提问(避免自测污染);开关打开时看全量。
-  // 旧数据没有 isAdmin 字段 → undefined,按非管理员保留。
-  const rows = opts.includeAdmin ? all : all.filter((r) => !r.isAdmin);
-  if (rows.length === 0) return empty;
+  // 默认只看普通用户(排除管理员自测);admin 只看管理员,all 看合计。
+  // 旧数据没有 isAdmin 字段 → undefined:user 保留、admin 排除,符合预期。
+  const scope = opts.scope ?? "user";
+  const rows =
+    scope === "all"
+      ? all
+      : scope === "admin"
+        ? all.filter((r) => r.isAdmin)
+        : all.filter((r) => !r.isAdmin);
+  // 当前筛选下没数据,但全表可能有(如切到「管理员」却没管理员提问)→ hasAny 仍为真。
+  if (rows.length === 0) return { ...empty, hasAny: all.length > 0 };
 
   // 近 14 天每日提问量(补零,保证连续)。
   const since = Date.now() - 13 * DAY;
@@ -224,5 +236,6 @@ export async function getAnalytics(
     topDocs,
     blindSpots,
     topQueries,
+    hasAny: true,
   };
 }
