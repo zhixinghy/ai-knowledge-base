@@ -75,7 +75,10 @@ function EyeBall({
 // ── 纯瞳孔(无眼白):前排两个角色用 ──
 function Pupil({ size = 10, look }: { size?: number; look: XY }) {
   return (
-    <div className="shrink-0 rounded-full" style={{ width: size, height: size }}>
+    <div
+      className="shrink-0 rounded-full"
+      style={{ width: size, height: size }}
+    >
       <div
         className="h-full w-full rounded-full"
         style={{
@@ -152,12 +155,16 @@ function CharactersPanel({
   const yellowLook = showPeek ? away : gaze(EYE.yellow, rel, 4);
 
   // 身体只做 skewX(原点 bottom center,脚永远贴地);密码可见时统一站直
-  const skewOf = (cx: number) => (showPeek ? 0 : clamp(-(rel.x - cx) / 42, -6, 6));
+  const skewOf = (cx: number) =>
+    showPeek ? 0 : clamp(-(rel.x - cx) / 42, -6, 6);
   // 脸部(眼睛簇)轻微平移,跟手更明显
   const faceOf = (e: XY) =>
     showPeek
       ? { x: 0, y: 0 }
-      : { x: clamp((rel.x - e.x) / 14, -7, 7), y: clamp((rel.y - e.y) / 18, -4, 4) };
+      : {
+          x: clamp((rel.x - e.x) / 14, -7, 7),
+          y: clamp((rel.y - e.y) / 18, -4, 4),
+        };
 
   const tealFace = faceOf(EYE.teal);
   const purpleFace = faceOf(EYE.purple);
@@ -169,7 +176,11 @@ function CharactersPanel({
   const faceTrans = "left 0.12s ease-out, top 0.12s ease-out";
 
   return (
-    <div ref={boxRef} className="relative mx-auto" style={{ width: BOX_W, height: BOX_H }}>
+    <div
+      ref={boxRef}
+      className="relative mx-auto"
+      style={{ width: BOX_W, height: BOX_H }}
+    >
       {/* 角色1:后排高柱,accent 青 */}
       <div
         className="absolute bottom-0"
@@ -187,7 +198,11 @@ function CharactersPanel({
       >
         <div
           className="absolute flex gap-3"
-          style={{ left: 14 + tealFace.x, top: 26 + tealFace.y, transition: faceTrans }}
+          style={{
+            left: 14 + tealFace.x,
+            top: 26 + tealFace.y,
+            transition: faceTrans,
+          }}
         >
           <EyeBall size={14} isBlinking={blink1} look={tealLook} />
           <EyeBall size={14} isBlinking={blink1} look={tealLook} />
@@ -239,7 +254,11 @@ function CharactersPanel({
       >
         <div
           className="absolute flex gap-4"
-          style={{ left: 26 + orangeFace.x, top: 30 + orangeFace.y, transition: faceTrans }}
+          style={{
+            left: 26 + orangeFace.x,
+            top: 30 + orangeFace.y,
+            transition: faceTrans,
+          }}
         >
           <Pupil size={9} look={orangeLook} />
           <Pupil size={9} look={orangeLook} />
@@ -263,7 +282,11 @@ function CharactersPanel({
       >
         <div
           className="absolute flex gap-3"
-          style={{ left: 14 + yellowFace.x, top: 22 + yellowFace.y, transition: faceTrans }}
+          style={{
+            left: 14 + yellowFace.x,
+            top: 22 + yellowFace.y,
+            transition: faceTrans,
+          }}
         >
           <Pupil size={9} look={yellowLook} />
           <Pupil size={9} look={yellowLook} />
@@ -368,7 +391,7 @@ export function AuthModal({
       />
 
       {/* 两列卡片(限高,避免手机端注册模式超出视口) */}
-      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 overflow-hidden rounded-2xl  bg-surface shadow-2xl">
         {/* 关闭按钮 */}
         <button
           type="button"
