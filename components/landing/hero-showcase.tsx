@@ -6,10 +6,10 @@ import { SplineScene } from "@/components/ui/splite";
 import { Spotlight } from "@/components/ui/spotlight";
 import { ArrowRightIcon, LibraryIcon } from "@/components/icons";
 
-// 标题里轮播打字的能力词,呼应「会答(生成)/会查(出处)/会算(工具)」。
-const TYPED_PHRASES = ["会答会查", "有据可查", "能搜会算"];
+// 句尾轮播打字的能力词,呼应「会答(生成)/会查(出处)/会算(工具)」三件事。
+const TYPED_PHRASES = ["有问必答", "句句有据", "能搜会算"];
 
-/** 打字机:逐字打出 → 停顿 → 删除 → 换下一个词,循环。带闪烁光标。 */
+/** 打字机:逐字打出 → 停顿 → 删除 → 换下一个词,循环。 */
 function Typewriter() {
   const [i, setI] = useState(0);
   const [text, setText] = useState("");
@@ -42,16 +42,11 @@ function Typewriter() {
     return () => clearTimeout(timer);
   }, [text, deleting, i]);
 
+  // 打字内容位于整行结尾,后面没有别的文字,横向伸缩不挤动任何东西;
+  // 行高由前缀「从此」稳住,所以这里不再需要不可见占位来固定宽高。
   return (
-    <span className="inline-grid align-baseline">
-      {/* 不可见占位:用最长词撑住固定宽高,避免打字时布局/高度抖动 */}
-      <span className="invisible col-start-1 row-start-1" aria-hidden>
-        会答会查
-      </span>
-      {/* 实际打字文字:与占位重叠在同一格,左对齐 */}
-      <span className="col-start-1 row-start-1 bg-linear-to-r from-accent to-teal-300 bg-clip-text text-transparent">
-        {text}
-      </span>
+    <span className="bg-linear-to-r from-accent to-teal-300 bg-clip-text text-transparent">
+      {text}
     </span>
   );
 }
@@ -85,10 +80,10 @@ export function HeroShowcase() {
             className="animate-fade-up mt-7 max-w-xl bg-linear-to-b from-neutral-50 to-neutral-400 bg-clip-text text-4xl font-bold leading-tight tracking-tight text-transparent md:text-5xl"
             style={{ animationDelay: "70ms" }}
           >
-            把你的文档,
+            让你的文档,
             <br />
             <span className="whitespace-nowrap">
-              变成一个<Typewriter />的助手。
+              从此<Typewriter />。
             </span>
           </h1>
 
