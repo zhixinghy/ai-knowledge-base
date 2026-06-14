@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthNav } from "@/components/auth/auth-nav";
@@ -66,37 +65,39 @@ export default function LandingPage() {
         </header>
 
         {/* ── Hero ── */}
-        <section className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6 sm:pt-12">
+        <section className="mx-auto max-w-6xl px-4 pb-6 pt-8 sm:px-6 sm:pt-10">
           <div className="animate-fade-up">
             <HeroShowcase />
           </div>
 
-          {/* Stats — 水平排列,点号分隔 */}
+          {/* Stats — 三栏指标条,呼应下方流程展台的分隔格风格 */}
           <div
-            className="animate-fade-up mt-4 flex flex-wrap items-center gap-x-1"
+            className="animate-fade-up mt-6 overflow-hidden rounded-2xl border border-border bg-surface"
             style={{ animationDelay: "280ms" }}
           >
-            {STATS.map((s, i) => (
-              <Fragment key={s.label}>
-                {i > 0 && (
-                  <span className="select-none px-2 text-border">·</span>
-                )}
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-mono text-lg font-semibold text-text">
+            <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {STATS.map((s) => (
+                <div
+                  key={s.label}
+                  className="group relative px-6 py-5 transition-colors hover:bg-surface-2"
+                >
+                  {/* 顶部 accent 标记:hover 时拉伸,编辑感细节 */}
+                  <span className="absolute left-0 top-0 h-0.5 w-6 bg-accent/0 transition-all duration-300 group-hover:bg-accent" />
+                  <div className="font-mono text-2xl font-semibold leading-none text-text transition-colors group-hover:text-accent">
                     {s.value}
-                  </span>
-                  <span className="text-xs text-faint">{s.label}</span>
+                  </div>
+                  <div className="mt-2 text-xs text-faint">{s.label}</div>
                 </div>
-              </Fragment>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
         {/* ── Section 01: 场景 ── */}
-        <section className="mx-auto max-w-6xl px-4 pb-8 pt-16 sm:px-6">
+        <section className="mx-auto max-w-6xl px-4 pb-6 pt-10 sm:px-6">
           {/* 编辑感节区头部:序号 + 标题 + 右侧说明 */}
           <div
-            className="animate-fade-up mb-12 flex items-end justify-between gap-6 border-b border-border pb-6"
+            className="animate-fade-up mb-8 flex items-end justify-between gap-6 border-b border-border pb-6"
             style={{ animationDelay: "60ms" }}
           >
             <div className="flex items-end gap-4">
@@ -180,10 +181,10 @@ export default function LandingPage() {
         </section>
 
         {/* ── Section 02: 处理流程 ── */}
-        <section className="mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6">
+        <section className="mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6">
           {/* 节区头部 */}
           <div
-            className="animate-fade-up mb-12 flex items-end justify-between gap-6 border-b border-border pb-6"
+            className="animate-fade-up mb-8 flex items-end justify-between gap-6 border-b border-border pb-6"
             style={{ animationDelay: "60ms" }}
           >
             <div className="flex items-end gap-4">
@@ -229,7 +230,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Footer ── */}
-        <footer className="mx-auto max-w-6xl border-t border-border px-6 py-10 text-sm text-faint">
+        <footer className="mx-auto max-w-6xl border-t border-border px-6 py-8 text-sm text-faint">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <Logo />

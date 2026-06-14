@@ -7,6 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { useDocuments } from "./documents-context";
 import { useAuth } from "./auth/auth-context";
 import { UserMenu } from "./auth/user-menu";
+import { LoginButton } from "./auth/login-button";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -17,7 +18,7 @@ const NAV = [
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { docs } = useDocuments();
-  const { user, loading, openAuthModal } = useAuth();
+  const { user, loading } = useAuth();
 
   return (
     <div className="flex h-full flex-col bg-surface">
@@ -103,7 +104,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* footer:左侧登录信息,右侧主题切换 */}
       <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
         {loading ? (
-          <div className="h-5 w-24 rounded bg-surface-2/60" />
+          <div className="h-9 w-24 rounded-full bg-surface-2/60" />
         ) : user ? (
           <>
             <UserMenu direction="up" align="left" showBadge onNavigate={onNavigate} />
@@ -111,13 +112,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => openAuthModal("login")}
-              className="truncate text-sm font-medium text-accent transition-opacity hover:opacity-80"
-            >
-              登录 / 注册
-            </button>
+            <LoginButton />
             <ThemeToggle />
           </>
         )}

@@ -120,6 +120,40 @@ function useBlink(delay = 0) {
   return blink;
 }
 
+// 跟随指针(鼠标 + 触摸):返回指针相对某画布容器的坐标,
+// 桌面端听 mousemove、移动端听 touchmove/touchstart,统一封装。
+// 容器隐藏(如移动端面板未显示)时拿不到位置就忽略,坐标保持默认(画布中心)。
+function usePointerInBox(
+  ref: React.RefObject<HTMLElement | null>,
+  fallback: XY,
+) {
+  const [rel, setRel] = useState<XY>(fallback);
+  useEffect(() => {
+    const update = (clientX: number, clientY: number) => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRel({ x: clientX - r.left, y: clientY - r.top });
+    };
+    const onMouse = (e: MouseEvent) => update(e.clientX, e.clientY);
+    const onTouch = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) update(t.clientX, t.clientY);
+    };
+    window.addEventListener("mousemove", onMouse);
+    // passive:不阻止滚动,仅读取手指位置
+    window.addEventListener("touchstart", onTouch, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", onMouse);
+      window.removeEventListener("touchstart", onTouch);
+      window.removeEventListener("touchmove", onTouch);
+    };
+    // fallback 仅用作初始值,故不进依赖;ref 恒定
+  }, [ref]);
+  return rel;
+}
+
 // ── 左侧装饰面板:四个几何角色 ──
 function CharactersPanel({
   isTyping,
@@ -129,22 +163,10 @@ function CharactersPanel({
   showPeek: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  // 鼠标相对画布坐标,默认指向画布中心
-  const [rel, setRel] = useState<XY>({ x: BOX_W / 2, y: BOX_H / 2 });
+
+  const rel = usePointerInBox(boxRef, { x: BOX_W / 2, y: BOX_H / 2 });
   const blink1 = useBlink(0);
   const blink2 = useBlink(1200);
-
-  // 只读一次画布(稳定容器)的位置 → 始终正确,且每次移动仅一次回流
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const el = boxRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      setRel({ x: e.clientX - r.left, y: e.clientY - r.top });
-    };
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, []);
 
   // 视线:密码可见时礼貌移开,紫色角色偷瞄;否则各自看鼠标
   const away: XY = { x: -3, y: -3.5 };
@@ -382,7 +404,6 @@ export function AuthModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 遮罩 */}
       <button
         type="button"
         aria-label="关闭"
@@ -390,9 +411,7 @@ export function AuthModal({
         className="animate-fade-in absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
-      {/* 两列卡片(限高,避免手机端注册模式超出视口) */}
-      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 overflow-hidden rounded-2xl  bg-surface shadow-2xl">
-        {/* 关闭按钮 */}
+      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 flex-col overflow-hidden rounded-2xl shadow-2xl sm:flex-row">
         <button
           type="button"
           aria-label="关闭"
@@ -402,14 +421,13 @@ export function AuthModal({
           <CloseIcon width={16} height={16} />
         </button>
 
-        {/* ── 左侧装饰面板(sm 以上显示) ── */}
         <div
-          className="hidden w-52 shrink-0 flex-col overflow-hidden sm:flex"
+          className="flex w-full shrink-0 flex-col overflow-hidden rounded-t-2xl sm:w-52 sm:rounded-l-2xl sm:rounded-tr-none"
           style={{
-            background: "linear-gradient(160deg, #0d3330 0%, #071c1a 100%)",
+            background: "linear-gradient(#0d3330 0%, #071c1a 100%)",
+            transform: "translateZ(0)",
           }}
         >
-          {/* 品牌 + 标语 */}
           <div className="px-5 pt-6">
             <div className="flex items-center gap-2">
               <Logo />
@@ -431,7 +449,7 @@ export function AuthModal({
         </div>
 
         {/* ── 右侧表单(超高可滚动) ── */}
-        <div className="min-w-0 flex-1 overflow-y-auto px-6 pb-7 pt-8">
+        <div className="min-w-0 flex-1 overflow-y-auto bg-surface px-6 pb-7 pt-8">
           {/* 标题 */}
           <div className="mb-6">
             <h2 className="font-serif text-lg font-semibold tracking-tight">
