@@ -1,9 +1,60 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SplineScene } from "@/components/ui/splite";
 import { Spotlight } from "@/components/ui/spotlight";
 import { ArrowRightIcon, LibraryIcon } from "@/components/icons";
+
+// 标题里轮播打字的能力词,呼应「会答(生成)/会查(出处)/会算(工具)」。
+const TYPED_PHRASES = ["会答会查", "有据可查", "能搜会算"];
+
+/** 打字机:逐字打出 → 停顿 → 删除 → 换下一个词,循环。带闪烁光标。 */
+function Typewriter() {
+  const [i, setI] = useState(0);
+  const [text, setText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const word = TYPED_PHRASES[i % TYPED_PHRASES.length];
+    const typed = !deleting && text === word;
+    const cleared = deleting && text === "";
+    let delay = deleting ? 60 : 130;
+    if (typed) delay = 1500; // 打完停顿
+    if (cleared) delay = 280; // 删完短停再换词
+
+    const timer = setTimeout(() => {
+      if (typed) {
+        setDeleting(true);
+        return;
+      }
+      if (cleared) {
+        setDeleting(false);
+        setI((v) => v + 1);
+        return;
+      }
+      setText((prev) =>
+        deleting
+          ? word.slice(0, prev.length - 1)
+          : word.slice(0, prev.length + 1),
+      );
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [text, deleting, i]);
+
+  return (
+    <span className="inline-grid align-baseline">
+      {/* 不可见占位:用最长词撑住固定宽高,避免打字时布局/高度抖动 */}
+      <span className="invisible col-start-1 row-start-1" aria-hidden>
+        会答会查
+      </span>
+      {/* 实际打字文字:与占位重叠在同一格,左对齐 */}
+      <span className="col-start-1 row-start-1 bg-linear-to-r from-accent to-teal-300 bg-clip-text text-transparent">
+        {text}
+      </span>
+    </span>
+  );
+}
 
 /**
  * 首页 hero —— 一整块深色 banner。
@@ -36,7 +87,9 @@ export function HeroShowcase() {
           >
             把你的文档,
             <br />
-            <span className="whitespace-nowrap">变成一个<span className="text-accent"> 会答会查 </span>的助手。</span>
+            <span className="whitespace-nowrap">
+              变成一个<Typewriter />的助手。
+            </span>
           </h1>
 
           <p
