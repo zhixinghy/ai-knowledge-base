@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/auth-context";
 import { TrashIcon } from "../icons";
+import { AnalyticsPanel } from "./analytics-panel";
 
 interface AdminUser {
   id: string;
@@ -83,11 +84,16 @@ export function AdminPanel() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">
           管理设置
         </h1>
         <p className="mt-1 text-sm text-faint">仅管理员可见</p>
+
+        {/* 使用分析 */}
+        <div className="mt-8">
+          <AnalyticsPanel />
+        </div>
 
         {/* 试用额度 */}
         <section className="mt-8 rounded-2xl border border-border bg-surface p-5">
@@ -135,7 +141,9 @@ export function AdminPanel() {
                   <tr className="border-b border-border text-left text-xs text-faint">
                     <th className="pb-2 font-medium">用户名</th>
                     <th className="pb-2 font-medium">类型</th>
-                    <th className="pb-2 font-medium">注册时间</th>
+                    <th className="hidden pb-2 font-medium sm:table-cell">
+                      注册时间
+                    </th>
                     <th className="pb-2 text-right font-medium">文档</th>
                     <th className="pb-2 text-right font-medium">操作</th>
                   </tr>
@@ -158,7 +166,7 @@ export function AdminPanel() {
                             <span className="text-muted">普通</span>
                           )}
                         </td>
-                        <td className="py-2.5 font-mono text-xs text-faint">
+                        <td className="hidden py-2.5 font-mono text-xs text-faint sm:table-cell">
                           {formatDate(u.createdAt)}
                         </td>
                         <td className="py-2.5 text-right font-mono text-xs text-muted">

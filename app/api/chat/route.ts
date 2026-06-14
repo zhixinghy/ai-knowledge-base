@@ -10,6 +10,7 @@ import {
 import { retrieve } from "@/lib/retrieve";
 import { agentTools } from "@/lib/tools";
 import { consumeAnonQuota, resolveOwnerId } from "@/lib/auth";
+import { logQuery } from "@/lib/analytics";
 import type { ChatMode, Source } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -84,10 +85,10 @@ export async function POST(req: Request) {
 
   let system = (SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.docs) + currentDateLine();
   let sources: Source[] = [];
+  const query = lastUserText(messages);
 
   // --- 读取路径:召回相关分块 ---
   if (RAG_MODES.has(mode)) {
-    const query = lastUserText(messages);
     if (query) {
       try {
         // docs 模式 → 用户自己的知识库(按 ownerId 隔离);support 模式 → 共享客服知识库
@@ -105,6 +106,16 @@ export async function POST(req: Request) {
       }
     }
   }
+
+  // 埋点:记录这次提问(自托管,数据不出境)。fire-and-forget,不阻塞回答。
+  logQuery({
+    ownerId,
+    anon: ownerId.startsWith("anon-"),
+    mode,
+    query,
+    sourcesCount: sources.length,
+    topDoc: sources[0]?.docName,
+  });
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
