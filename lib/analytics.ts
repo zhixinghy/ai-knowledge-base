@@ -22,6 +22,7 @@ export interface QueryLogRow {
   ts: number; // 毫秒时间戳
   ownerId: string; // 登录用户 id 或 anon-xxx
   anon: boolean; // 是否未登录访客
+  isAdmin: boolean; // 是否管理员提问(默认从统计中排除,避免自测污染数据)
   mode: string; // ChatMode
   query: string; // 用户提问原文(仅 admin 可见)
   hit: boolean; // RAG 模式下是否命中知识库
@@ -49,6 +50,7 @@ function serialize<T>(fn: () => Promise<T>): Promise<T> {
 export interface LogInput {
   ownerId: string;
   anon: boolean;
+  isAdmin: boolean;
   mode: ChatMode;
   query: string;
   sourcesCount: number;
@@ -67,20 +69,29 @@ export function logQuery(input: LogInput): void {
     ts: Date.now(),
     ownerId: input.ownerId,
     anon: input.anon,
+    isAdmin: input.isAdmin,
     mode: input.mode,
     query,
     hit: input.sourcesCount > 0,
     hitCount: input.sourcesCount,
     topDoc: input.topDoc ?? "",
   };
+  const data = [row as unknown as Record<string, unknown>];
   void serialize(async () => {
     const conn = await db();
     const names = await conn.tableNames();
-    if (names.includes(LOGS)) {
-      const tbl = await conn.openTable(LOGS);
-      await tbl.add([row as unknown as Record<string, unknown>]);
-    } else {
-      await conn.createTable(LOGS, [row as unknown as Record<string, unknown>]);
+    if (!names.includes(LOGS)) {
+      await conn.createTable(LOGS, data);
+      return;
+    }
+    const tbl = await conn.openTable(LOGS);
+    try {
+      await tbl.add(data);
+    } catch {
+      // 旧表(早于 isAdmin 字段)缺列会导致 add 失败 → 补列再写。
+      // 历史行 isAdmin 填 false(按非管理员处理),不影响既有统计。
+      await tbl.addColumns([{ name: "isAdmin", valueSql: "false" }]);
+      await tbl.add(data);
     }
   }).catch((err) => {
     // 埋点失败只记日志,绝不向上抛——不能因为统计写不进去而影响用户提问。
@@ -120,7 +131,9 @@ function topByQuery(
   return [...map.values()].sort((a, b) => b.count - a.count).slice(0, n);
 }
 
-export async function getAnalytics(): Promise<AnalyticsResult> {
+export async function getAnalytics(
+  opts: { includeAdmin?: boolean } = {},
+): Promise<AnalyticsResult> {
   const conn = await db();
   const names = await conn.tableNames();
   const empty: AnalyticsResult = {
@@ -140,11 +153,14 @@ export async function getAnalytics(): Promise<AnalyticsResult> {
   // 顺手清理超出保留期的旧行(读路径触发,不拖慢写路径)。
   void serialize(() => tbl.delete(`ts < ${cutoff}`)).catch(() => {});
 
-  const rows = (await tbl
+  const all = (await tbl
     .query()
     .where(`ts >= ${cutoff}`)
     .limit(500_000)
     .toArray()) as QueryLogRow[];
+  // 默认排除管理员自己的提问(避免自测污染);开关打开时看全量。
+  // 旧数据没有 isAdmin 字段 → undefined,按非管理员保留。
+  const rows = opts.includeAdmin ? all : all.filter((r) => !r.isAdmin);
   if (rows.length === 0) return empty;
 
   // 近 14 天每日提问量(补零,保证连续)。

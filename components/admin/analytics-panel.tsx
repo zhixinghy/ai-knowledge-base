@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import type { ChatMode } from "@/lib/types";
 
 export interface AnalyticsData {
@@ -215,34 +216,71 @@ function Card({
 export function AnalyticsPanel() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  // 默认排除管理员自己的提问(避免自测污染);打开则看全量。
+  const [includeAdmin, setIncludeAdmin] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/analytics")
-      .then((r) => r.json())
-      .then((d) => setData(d))
+    let alive = true;
+    setLoading(true);
+    api
+      .get<AnalyticsData>(
+        `/admin/analytics${includeAdmin ? "?includeAdmin=1" : ""}`,
+      )
+      .then((d) => alive && setData(d))
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [includeAdmin]);
 
-  if (loading)
-    return (
-      <section className="rounded-2xl border border-border bg-surface p-5">
+  // 仅首次(还没有任何数据)显示加载占位;切换开关时保留旧图,避免整块闪烁。
+  const initialLoading = loading && !data;
+  const empty = !loading && (!data || data.total === 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold">使用分析</h2>
-        <p className="mt-4 text-sm text-faint">加载中…</p>
-      </section>
-    );
+        <div className="flex items-center gap-3">
+          {data && data.total > 0 && (
+            <span className="font-mono text-xs text-faint">
+              近 90 天 · 共 {data.total} 次提问
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setIncludeAdmin((v) => !v)}
+            aria-pressed={includeAdmin}
+            title="默认排除管理员自己的提问,避免自测数据污染统计"
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              includeAdmin
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-border text-faint hover:border-accent hover:text-accent"
+            }`}
+          >
+            含管理员提问
+          </button>
+        </div>
+      </div>
 
-  if (!data || data.total === 0)
-    return (
-      <section className="rounded-2xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold">使用分析</h2>
-        <p className="mt-3 text-sm text-faint">
-          暂无数据。用户开始提问后,这里会出现活跃度、场景分布、知识库命中率等统计。
-        </p>
-      </section>
-    );
-
-  return <AnalyticsView data={data} />;
+      {initialLoading ? (
+        <section className="rounded-2xl border border-border bg-surface p-5">
+          <p className="text-sm text-faint">加载中…</p>
+        </section>
+      ) : empty ? (
+        <section className="rounded-2xl border border-border bg-surface p-5">
+          <p className="text-sm text-faint">
+            暂无数据。用户开始提问后,这里会出现活跃度、场景分布、知识库命中率等统计。
+            {!includeAdmin &&
+              "(已排除管理员提问,打开右上「含管理员提问」可看全量。)"}
+          </p>
+        </section>
+      ) : (
+        data && <AnalyticsView data={data} />
+      )}
+    </div>
+  );
 }
 
 export function AnalyticsView({ data }: { data: AnalyticsData }) {
@@ -262,13 +300,6 @@ export function AnalyticsView({ data }: { data: AnalyticsData }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold">使用分析</h2>
-        <span className="font-mono text-xs text-faint">
-          近 90 天 · 共 {data.total} 次提问
-        </span>
-      </div>
-
       {/* 提问量趋势 */}
       <Card title="提问量趋势" hint="近 14 天每日提问数">
         <DailyBars data={data.daily} />

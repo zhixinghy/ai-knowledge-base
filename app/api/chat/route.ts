@@ -9,7 +9,7 @@ import {
 } from "ai";
 import { retrieve } from "@/lib/retrieve";
 import { agentTools } from "@/lib/tools";
-import { consumeAnonQuota, resolveOwnerId } from "@/lib/auth";
+import { consumeAnonQuota, getCurrentUser, resolveOwnerId } from "@/lib/auth";
 import { logQuery } from "@/lib/analytics";
 import type { ChatMode, Source } from "@/lib/types";
 
@@ -108,9 +108,12 @@ export async function POST(req: Request) {
   }
 
   // 埋点:记录这次提问(自托管,数据不出境)。fire-and-forget,不阻塞回答。
+  // getCurrentUser 按请求缓存,与上面的鉴权共享,无额外开销。
+  const user = await getCurrentUser();
   logQuery({
     ownerId,
-    anon: ownerId.startsWith("anon-"),
+    anon: !user,
+    isAdmin: user?.role === "admin",
     mode,
     query,
     sourcesCount: sources.length,
