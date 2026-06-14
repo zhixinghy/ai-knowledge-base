@@ -1,10 +1,289 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CloseIcon, Logo } from "../icons";
+import { CloseIcon, EyeIcon, EyeOffIcon, Logo } from "../icons";
+import { api, ApiError } from "@/lib/api";
+import type { AuthUser } from "./auth-context";
 
 type Mode = "login" | "register";
 
+type XY = { x: number; y: number };
+
+const PUPIL = "#071a18"; // 瞳孔深色,落在深青背景上也清晰
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// 角色画布尺寸(面板局部坐标系,角色都贴在 bottom)
+const BOX_W = 160;
+const BOX_H = 170;
+
+// 各角色「眼睛簇中心」在画布里的固定坐标 —— 视线方向据此用纯数学算,
+// 不再每帧读 getBoundingClientRect,避免读到动画中途值造成的抖动与强制回流
+const EYE = {
+  teal: { x: 62, y: 61 },
+  purple: { x: 104, y: 87 },
+  orange: { x: 45, y: 142 },
+  yellow: { x: 135, y: 116 },
+} as const;
+
+// 由「鼠标相对画布坐标 rel」算出视线/瞳孔偏移(限制在 max 半径内)
+function gaze(eye: XY, rel: XY, max: number): XY {
+  const dx = rel.x - eye.x;
+  const dy = rel.y - eye.y;
+  const dist = Math.min(Math.hypot(dx, dy), max);
+  const a = Math.atan2(dy, dx);
+  return { x: Math.cos(a) * dist, y: Math.sin(a) * dist };
+}
+
+// ── 眼球(带眼白):look 为瞳孔偏移 ──
+function EyeBall({
+  size = 12,
+  isBlinking = false,
+  look,
+}: {
+  size?: number;
+  isBlinking?: boolean;
+  look: XY;
+}) {
+  return (
+    <div
+      className="shrink-0 rounded-full bg-white flex items-center justify-center"
+      style={{
+        width: size,
+        height: isBlinking ? 2 : size,
+        transition: "height 0.12s ease",
+      }}
+    >
+      {!isBlinking && (
+        <div
+          className="rounded-full"
+          style={{
+            width: Math.round(size * 0.48),
+            height: Math.round(size * 0.48),
+            background: PUPIL,
+            transform: `translate(${look.x}px, ${look.y}px)`,
+            transition: "transform 0.08s ease-out",
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── 纯瞳孔(无眼白):前排两个角色用 ──
+function Pupil({ size = 10, look }: { size?: number; look: XY }) {
+  return (
+    <div className="shrink-0 rounded-full" style={{ width: size, height: size }}>
+      <div
+        className="h-full w-full rounded-full"
+        style={{
+          background: PUPIL,
+          transform: `translate(${look.x}px, ${look.y}px)`,
+          transition: "transform 0.08s ease-out",
+        }}
+      />
+    </div>
+  );
+}
+
+// 随机眨眼:返回一个 boolean state,组件卸载即停
+function useBlink(delay = 0) {
+  const [blink, setBlink] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    function loop() {
+      const t = setTimeout(
+        () => {
+          if (!mounted) return;
+          setBlink(true);
+          setTimeout(() => {
+            if (!mounted) return;
+            setBlink(false);
+            loop();
+          }, 150);
+        },
+        Math.random() * 4000 + 2500,
+      );
+      return t;
+    }
+    const start = setTimeout(loop, delay);
+    return () => {
+      mounted = false;
+      clearTimeout(start);
+    };
+  }, [delay]);
+  return blink;
+}
+
+// ── 左侧装饰面板:四个几何角色 ──
+function CharactersPanel({
+  isTyping,
+  showPeek,
+}: {
+  isTyping: boolean;
+  showPeek: boolean;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  // 鼠标相对画布坐标,默认指向画布中心
+  const [rel, setRel] = useState<XY>({ x: BOX_W / 2, y: BOX_H / 2 });
+  const blink1 = useBlink(0);
+  const blink2 = useBlink(1200);
+
+  // 只读一次画布(稳定容器)的位置 → 始终正确,且每次移动仅一次回流
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const el = boxRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRel({ x: e.clientX - r.left, y: e.clientY - r.top });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  // 视线:密码可见时礼貌移开,紫色角色偷瞄;否则各自看鼠标
+  const away: XY = { x: -3, y: -3.5 };
+  const peek: XY = { x: 3, y: 3.5 };
+  const tealLook = showPeek ? away : gaze(EYE.teal, rel, 3);
+  const purpleLook = showPeek ? peek : gaze(EYE.purple, rel, 3);
+  const orangeLook = showPeek ? away : gaze(EYE.orange, rel, 4);
+  const yellowLook = showPeek ? away : gaze(EYE.yellow, rel, 4);
+
+  // 身体只做 skewX(原点 bottom center,脚永远贴地);密码可见时统一站直
+  const skewOf = (cx: number) => (showPeek ? 0 : clamp(-(rel.x - cx) / 42, -6, 6));
+  // 脸部(眼睛簇)轻微平移,跟手更明显
+  const faceOf = (e: XY) =>
+    showPeek
+      ? { x: 0, y: 0 }
+      : { x: clamp((rel.x - e.x) / 14, -7, 7), y: clamp((rel.y - e.y) / 18, -4, 4) };
+
+  const tealFace = faceOf(EYE.teal);
+  const purpleFace = faceOf(EYE.purple);
+  const orangeFace = faceOf(EYE.orange);
+  const yellowFace = faceOf(EYE.yellow);
+
+  // 身体过渡放慢、脸部跟手要快,分开设置
+  const bodyTrans = "transform 0.3s ease, height 0.4s ease";
+  const faceTrans = "left 0.12s ease-out, top 0.12s ease-out";
+
+  return (
+    <div ref={boxRef} className="relative mx-auto" style={{ width: BOX_W, height: BOX_H }}>
+      {/* 角色1:后排高柱,accent 青 */}
+      <div
+        className="absolute bottom-0"
+        style={{
+          left: 28,
+          width: 56,
+          height: isTyping ? 156 : 142,
+          background: "rgba(47,212,193,0.9)",
+          borderRadius: "10px 10px 0 0",
+          zIndex: 1,
+          transformOrigin: "bottom center",
+          transform: `skewX(${isTyping ? skewOf(56) - 3 : skewOf(56)}deg)`,
+          transition: bodyTrans,
+        }}
+      >
+        <div
+          className="absolute flex gap-3"
+          style={{ left: 14 + tealFace.x, top: 26 + tealFace.y, transition: faceTrans }}
+        >
+          <EyeBall size={14} isBlinking={blink1} look={tealLook} />
+          <EyeBall size={14} isBlinking={blink1} look={tealLook} />
+        </div>
+      </div>
+
+      {/* 角色2:中排,柔紫,会偷瞄 */}
+      <div
+        className="absolute bottom-0"
+        style={{
+          left: 80,
+          width: 40,
+          height: showPeek ? 122 : 106,
+          background: "#8b7cf6",
+          borderRadius: "8px 8px 0 0",
+          zIndex: 2,
+          transformOrigin: "bottom center",
+          transform: `skewX(${isTyping ? skewOf(100) + 4 : skewOf(100)}deg)`,
+          transition: bodyTrans,
+        }}
+      >
+        <div
+          className="absolute flex gap-2"
+          style={{
+            left: 9 + purpleFace.x,
+            top: (showPeek ? 14 : 18) + purpleFace.y,
+            transition: faceTrans,
+          }}
+        >
+          <EyeBall size={11} isBlinking={blink2} look={purpleLook} />
+          <EyeBall size={11} isBlinking={blink2} look={purpleLook} />
+        </div>
+      </div>
+
+      {/* 角色3:前排半圆,暖橙(只有瞳孔) */}
+      <div
+        className="absolute bottom-0"
+        style={{
+          left: 2,
+          width: 78,
+          height: 62,
+          background: "#f4a261",
+          borderRadius: "39px 39px 0 0",
+          zIndex: 3,
+          transformOrigin: "bottom center",
+          transform: `skewX(${skewOf(45)}deg)`,
+          transition: bodyTrans,
+        }}
+      >
+        <div
+          className="absolute flex gap-4"
+          style={{ left: 26 + orangeFace.x, top: 30 + orangeFace.y, transition: faceTrans }}
+        >
+          <Pupil size={9} look={orangeLook} />
+          <Pupil size={9} look={orangeLook} />
+        </div>
+      </div>
+
+      {/* 角色4:前排圆角,亮黄(瞳孔 + 嘴) */}
+      <div
+        className="absolute bottom-0"
+        style={{
+          left: 106,
+          width: 48,
+          height: 80,
+          background: "#e9c46a",
+          borderRadius: "24px 24px 0 0",
+          zIndex: 4,
+          transformOrigin: "bottom center",
+          transform: `skewX(${skewOf(135)}deg)`,
+          transition: bodyTrans,
+        }}
+      >
+        <div
+          className="absolute flex gap-3"
+          style={{ left: 14 + yellowFace.x, top: 22 + yellowFace.y, transition: faceTrans }}
+        >
+          <Pupil size={9} look={yellowLook} />
+          <Pupil size={9} look={yellowLook} />
+        </div>
+        {/* 嘴:一条短横线 */}
+        <div
+          className="absolute h-0.75 w-7 rounded-full"
+          style={{
+            background: PUPIL,
+            left: 11 + yellowFace.x,
+            top: 50 + yellowFace.y,
+            transition: faceTrans,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── 主弹窗 ──
 export function AuthModal({
   initialMode,
   onClose,
@@ -18,11 +297,16 @@ export function AuthModal({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unregistered, setUnregistered] = useState(false);
   const [pending, setPending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
-  // 打开即聚焦,Esc 关闭
+  // 密码可见时让角色偷瞄
+  const showPeek = showPassword && password.length > 0;
+
   useEffect(() => {
     firstFieldRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -35,6 +319,7 @@ export function AuthModal({
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
+    setUnregistered(false);
     setConfirm("");
   }
 
@@ -42,6 +327,7 @@ export function AuthModal({
     e.preventDefault();
     if (pending) return;
     setError(null);
+    setUnregistered(false);
 
     if (mode === "register" && password !== confirm) {
       setError("两次输入的密码不一致");
@@ -50,27 +336,26 @@ export function AuthModal({
 
     setPending(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
+      await api.post<{ user: AuthUser }>(`/auth/${mode}`, {
+        username: username.trim(),
+        password,
       });
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      if (!res.ok) {
-        setError(data?.error || "操作失败,请重试");
-        return;
-      }
       await onSuccess();
-    } catch {
-      setError("网络异常,请稍后重试");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === "NO_USER") setUnregistered(true);
+        setError(err.message);
+      } else {
+        setError("网络异常,请稍后重试");
+      }
     } finally {
       setPending(false);
     }
   }
 
   const isLogin = mode === "login";
+  const fieldClass =
+    "w-full rounded-lg border border-border bg-surface-2/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:bg-surface";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -82,31 +367,58 @@ export function AuthModal({
         className="animate-fade-in absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
-      {/* 卡片 */}
-      <div className="animate-scale-in relative w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+      {/* 两列卡片(限高,避免手机端注册模式超出视口) */}
+      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+        {/* 关闭按钮 */}
         <button
           type="button"
           aria-label="关闭"
           onClick={onClose}
-          className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-text"
+          className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/10 hover:text-white/80 sm:text-faint sm:hover:bg-surface-2 sm:hover:text-text"
         >
           <CloseIcon width={16} height={16} />
         </button>
 
-        <div className="px-7 pb-7 pt-8">
-          {/* 品牌 */}
-          <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <Logo className="h-10 w-10" />
-            <div>
-              <h2 className="font-serif text-lg font-semibold tracking-tight">
-                {isLogin ? "欢迎回来" : "创建账号"}
-              </h2>
-              <p className="mt-1 text-xs text-faint">
-                {isLogin
-                  ? "登录后继续使用 Cortex 知识库"
-                  : "注册后即可拥有专属知识库,不限次使用"}
-              </p>
+        {/* ── 左侧装饰面板(sm 以上显示) ── */}
+        <div
+          className="hidden w-52 shrink-0 flex-col overflow-hidden sm:flex"
+          style={{
+            background: "linear-gradient(160deg, #0d3330 0%, #071c1a 100%)",
+          }}
+        >
+          {/* 品牌 + 标语 */}
+          <div className="px-5 pt-6">
+            <div className="flex items-center gap-2">
+              <Logo />
+              <span className="font-serif text-sm font-semibold text-white/80">
+                Cortex
+              </span>
             </div>
+            <p className="mt-4 text-xs leading-relaxed text-white/35">
+              知识越用越多,
+              <br />
+              助手越问越准。
+            </p>
+          </div>
+
+          {/* 动画角色:推到底部,站在面板地面上 */}
+          <div className="mt-auto w-full">
+            <CharactersPanel isTyping={isTyping} showPeek={showPeek} />
+          </div>
+        </div>
+
+        {/* ── 右侧表单(超高可滚动) ── */}
+        <div className="min-w-0 flex-1 overflow-y-auto px-6 pb-7 pt-8">
+          {/* 标题 */}
+          <div className="mb-6">
+            <h2 className="font-serif text-lg font-semibold tracking-tight">
+              {isLogin ? "欢迎回来" : "创建账号"}
+            </h2>
+            <p className="mt-1 text-xs text-faint">
+              {isLogin
+                ? "登录后继续使用 Cortex 知识库"
+                : "注册后即可拥有专属知识库,不限次使用"}
+            </p>
           </div>
 
           <form onSubmit={submit} className="flex flex-col gap-3">
@@ -116,34 +428,54 @@ export function AuthModal({
                 ref={firstFieldRef}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setIsTyping(true)}
+                onBlur={() => setIsTyping(false)}
                 autoComplete="username"
-                placeholder="2 个字符以上"
-                className="rounded-lg border border-border bg-surface-2/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:bg-surface"
+                placeholder="输入你的用户名"
+                className={fieldClass}
               />
             </label>
 
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-muted">密码</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                placeholder="6 位以上"
-                className="rounded-lg border border-border bg-surface-2/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:bg-surface"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setIsTyping(true)}
+                  onBlur={() => setIsTyping(false)}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  placeholder="输入密码"
+                  className={`${fieldClass} pr-9`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-text"
+                >
+                  {showPassword ? (
+                    <EyeOffIcon width={16} height={16} />
+                  ) : (
+                    <EyeIcon width={16} height={16} />
+                  )}
+                </button>
+              </div>
             </label>
 
             {!isLogin && (
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted">确认密码</span>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
+                  onFocus={() => setIsTyping(true)}
+                  onBlur={() => setIsTyping(false)}
                   autoComplete="new-password"
-                  placeholder="再输入一次密码"
-                  className="rounded-lg border border-border bg-surface-2/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:bg-surface"
+                  placeholder="再次输入密码"
+                  className={fieldClass}
                 />
               </label>
             )}

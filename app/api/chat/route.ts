@@ -25,6 +25,21 @@ const SYSTEM_PROMPTS: Record<ChatMode, string> = {
 // modes that should ground answers in the knowledge base (RAG)
 const RAG_MODES: ReadonlySet<ChatMode> = new Set(["docs", "support"]);
 
+/**
+ * 告诉模型「今天是几号」。否则模型会按训练时的年份(如 2025)推断时间,
+ * 导致联网搜索 / 实时问答的日期错乱。以北京时间为准。
+ */
+function currentDateLine(): string {
+  const today = new Date().toLocaleDateString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+  return `\n\n当前日期:${today}(北京时间)。涉及"最新/今年/现在/近期"等与时间相关的问题时,一律以此日期为准,不要假设为你训练时的年份。`;
+}
+
 function lastUserText(messages: UIMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") {
@@ -67,7 +82,7 @@ export async function POST(req: Request) {
   }
   const ownerId = await resolveOwnerId();
 
-  let system = SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.docs;
+  let system = (SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.docs) + currentDateLine();
   let sources: Source[] = [];
 
   // --- 读取路径:召回相关分块 ---

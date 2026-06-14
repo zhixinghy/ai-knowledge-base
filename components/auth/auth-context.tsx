@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AuthModal } from "./auth-modal";
+import { api } from "@/lib/api";
 
 export interface AuthUser {
   userId: string;
@@ -35,8 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me");
-      const data = (await res.json()) as { user: AuthUser | null };
+      const data = await api.get<{ user: AuthUser | null }>("/auth/me");
       setUser(data.user ?? null);
     } catch {
       // 忽略 —— 保留现有登录态
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const closeAuthModal = useCallback(() => setModal(null), []);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await api.post("/auth/logout");
     setUser(null);
   }, []);
 

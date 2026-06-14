@@ -1,4 +1,4 @@
-import { verifyUser } from "@/lib/users";
+import { getUserByUsername, verifyUser } from "@/lib/users";
 import { createSession } from "@/lib/session";
 
 export async function POST(req: Request) {
@@ -12,11 +12,21 @@ export async function POST(req: Request) {
       return Response.json({ error: "请输入用户名和密码" }, { status: 400 });
     }
 
+    if (!(await getUserByUsername(name))) {
+      return Response.json(
+        { error: "该用户名还没有注册", code: "NO_USER" },
+        { status: 401 },
+      );
+    }
     const user = await verifyUser(name, password);
     if (!user) {
-      return Response.json({ error: "用户名或密码错误" }, { status: 401 });
+      return Response.json({ error: "密码不正确,请重试" }, { status: 401 });
     }
-    await createSession({ userId: user.id, username: user.username, role: user.role });
+    await createSession({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    });
     return Response.json({ user });
   } catch (err) {
     console.error("[/api/auth/login]", err);

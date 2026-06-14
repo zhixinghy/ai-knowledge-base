@@ -5,16 +5,18 @@ import { StatusBadge } from "./status-badge";
 import type { KnowledgeDoc } from "@/lib/types";
 import { formatBytes, relativeTime } from "@/lib/utils";
 
-export function DocumentList({
-  docs,
-  onDelete,
-  isAdmin = false,
-}: {
+interface DocumentListProps {
   docs: KnowledgeDoc[];
   onDelete: (id: string) => void;
   /** 是否管理员;客服库文档只有管理员能删,普通用户不显示删除按钮 */
   isAdmin?: boolean;
-}) {
+}
+
+export function DocumentList({
+  docs,
+  onDelete,
+  isAdmin = false,
+}: DocumentListProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border">
       {docs.map((doc, i) => {

@@ -10,6 +10,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useAuth } from "./auth/auth-context";
+import { api } from "@/lib/api";
 import type { KnowledgeDoc } from "@/lib/types";
 
 interface DocumentsContextValue {
@@ -32,8 +33,7 @@ export function DocumentsProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/documents");
-      const data = await res.json();
+      const data = await api.get<KnowledgeDoc[]>("/documents");
       if (Array.isArray(data)) setDocs(data);
     } catch {
     } finally {

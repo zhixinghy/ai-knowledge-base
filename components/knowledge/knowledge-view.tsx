@@ -8,6 +8,7 @@ import { useDocuments } from "../documents-context";
 import { useAuth } from "../auth/auth-context";
 import type { Collection, KnowledgeDoc } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { api, ApiError } from "@/lib/api";
 
 let uploadCounter = 0;
 
@@ -67,25 +68,22 @@ export function KnowledgeView() {
             const fd = new FormData();
             fd.append("file", file);
             fd.append("collection", collection);
-            const res = await fetch("/api/ingest", { method: "POST", body: fd });
-            if (!res.ok) {
-              const body = (await res.json().catch(() => null)) as
-                | { error?: string }
-                | null;
-              // 试用额度用尽 → 弹登录/注册框
-              if (res.status === 401) openAuthModal("register");
-              throw new Error(body?.error || `HTTP ${res.status}`);
-            }
-            const doc = (await res.json()) as KnowledgeDoc;
+            const doc = await api.upload<KnowledgeDoc>("/ingest", fd);
             if (!aliveRef.current) return;
             setDocs((prev) => prev.map((d) => (d.id === tempId ? doc : d)));
           } catch (e) {
             if (!aliveRef.current) return;
+            // 试用额度用尽 → 弹登录/注册框
+            if (e instanceof ApiError && e.status === 401) {
+              openAuthModal("register");
+            }
             setError(
               `「${file.name}」入库失败:${e instanceof Error ? e.message : "未知错误"}`,
             );
             setDocs((prev) =>
-              prev.map((d) => (d.id === tempId ? { ...d, status: "failed" } : d)),
+              prev.map((d) =>
+                d.id === tempId ? { ...d, status: "failed" } : d,
+              ),
             );
           }
         }
@@ -99,12 +97,7 @@ export function KnowledgeView() {
       const prev = docs;
       setDocs((cur) => cur.filter((d) => d.id !== id));
       try {
-        const res = await fetch("/api/documents", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        });
-        if (!res.ok) throw new Error();
+        await api.del("/documents", { id });
       } catch {
         setError("删除失败");
         setDocs(prev);
@@ -203,7 +196,7 @@ export function KnowledgeView() {
               isAdmin={isAdmin}
             />
           ) : (
-            <EmptyDocs />
+            <EmptyDocs collection={collection} isAdmin={isAdmin} />
           )}
         </div>
       </div>
@@ -232,13 +225,24 @@ function LoadingDocs() {
   );
 }
 
-function EmptyDocs() {
+function EmptyDocs({
+  collection,
+  isAdmin,
+}: {
+  collection: Collection;
+  isAdmin: boolean;
+}) {
+  // 客服库是公共库,仅管理员可维护;文档库是用户自己的,人人可上传
+  const canUpload = collection !== "support" || isAdmin;
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-14 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2 text-faint">
         <LibraryIcon />
       </div>
-      <p className="mt-4 text-sm text-muted">这个库还没有文档,上传一份 PDF 试试</p>
+      <p className="mt-4 text-sm text-muted">
+        这个库还没有文档,
+        {canUpload ? "上传一份 PDF 试试！" : "请联系管理员上传文档。"}
+      </p>
     </div>
   );
 }

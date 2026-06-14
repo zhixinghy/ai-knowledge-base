@@ -7,10 +7,13 @@ import {
   ChevronDown,
   Copy,
   Database,
+  Eye,
+  EyeOff,
   FileText,
   Globe,
   LibraryBig,
   Loader2,
+  Lock,
   LogOut,
   Menu,
   Moon,
@@ -21,6 +24,7 @@ import {
   Sun,
   Trash2,
   Upload,
+  User,
   X,
 } from "lucide-react";
 
@@ -85,6 +89,10 @@ export const CloseIcon = mk(X);
 export const CopyIcon = mk(Copy);
 export const SettingsIcon = mk(Settings);
 export const LogOutIcon = mk(LogOut);
+export const UserIcon = mk(User);
+export const LockIcon = mk(Lock);
+export const EyeIcon = mk(Eye);
+export const EyeOffIcon = mk(EyeOff);
 
 // 加载中:lucide Loader2 + 自带的 animate-spin
 export const SpinnerIcon = (p: IconProps) => (
