@@ -347,6 +347,7 @@ export function AuthModal({
   const [unregistered, setUnregistered] = useState(false);
   const [pending, setPending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [vkbOffset, setVkbOffset] = useState(0);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
   // 密码可见时让角色偷瞄
@@ -360,6 +361,22 @@ export function AuthModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // 手机端键盘弹出时把弹窗上推,避免输入框被遮住
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      if (window.innerWidth >= 640) { setVkbOffset(0); return; }
+      setVkbOffset(Math.max(0, window.innerHeight - vv.height));
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -403,7 +420,7 @@ export function AuthModal({
     "w-full rounded-lg border border-border bg-surface-2/40 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:bg-surface";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4">
       <button
         type="button"
         aria-label="关闭"
@@ -411,7 +428,10 @@ export function AuthModal({
         className="animate-fade-in absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
-      <div className="animate-scale-in relative flex max-h-[90vh] w-full max-w-155 flex-col overflow-hidden rounded-2xl shadow-2xl sm:flex-row">
+      <div
+        className="animate-scale-in relative flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:max-w-155 sm:rounded-2xl sm:flex-row"
+        style={{ marginBottom: vkbOffset }}
+      >
         <button
           type="button"
           aria-label="关闭"
