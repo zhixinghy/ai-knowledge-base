@@ -38,7 +38,10 @@ const TOOL_META: Record<
   string,
   { icon: ToolCall["icon"]; label: (input: ToolPart["input"]) => string }
 > = {
-  calculator: { icon: "calculator", label: (i) => `计算:${i?.expression ?? ""}` },
+  calculator: {
+    icon: "calculator",
+    label: (i) => `计算:${i?.expression ?? ""}`,
+  },
   web_search: { icon: "globe", label: (i) => `联网搜索:「${i?.query ?? ""}」` },
 };
 
@@ -50,7 +53,9 @@ function toolCallsOf(m: UIMessage): ToolCall[] | undefined {
     const isDynamic = p.type === "dynamic-tool";
     if (!isTool && !isDynamic) continue;
     const part = p as unknown as ToolPart;
-    const name = isDynamic ? part.toolName ?? "tool" : part.type.slice("tool-".length);
+    const name = isDynamic
+      ? (part.toolName ?? "tool")
+      : part.type.slice("tool-".length);
     const meta = TOOL_META[name];
     const status: ToolCall["status"] =
       part.state === "output-available"
@@ -79,6 +84,8 @@ export function ChatView() {
   const [mode, setMode] = useState<ChatMode>("docs");
   const [input, setInput] = useState("");
 
+  const savedMessages = useRef<Partial<Record<ChatMode, UIMessage[]>>>({});
+
   const { openAuthModal } = useAuth();
 
   const { messages, sendMessage, setMessages, stop, status, error } = useChat({
@@ -95,11 +102,11 @@ export function ChatView() {
 
   const busy = status === "submitted" || status === "streaming";
 
-  // 切换模式 = 切换上下文(人设 + 知识库)→ 清空对话
   function handleModeChange(next: ChatMode) {
     if (next === mode) return;
     if (busy) void stop();
-    setMessages([]);
+    savedMessages.current[mode] = messages;
+    setMessages(savedMessages.current[next] ?? []);
     setInput("");
     setMode(next);
   }
@@ -135,7 +142,12 @@ export function ChatView() {
         status === "streaming",
     }));
   if (status === "submitted") {
-    rendered.push({ id: "pending", role: "assistant", content: "", streaming: true });
+    rendered.push({
+      id: "pending",
+      role: "assistant",
+      content: "",
+      streaming: true,
+    });
   }
 
   return (
@@ -151,7 +163,13 @@ export function ChatView() {
       {/* messages */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         {empty ? (
-          <EmptyState mode={mode} onPick={(s) => { setInput(""); void sendMessage({ text: s }, { body: { mode } }); }} />
+          <EmptyState
+            mode={mode}
+            onPick={(s) => {
+              setInput("");
+              void sendMessage({ text: s }, { body: { mode } });
+            }}
+          />
         ) : (
           <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
             {rendered.map((m) => (
@@ -159,7 +177,9 @@ export function ChatView() {
             ))}
             {error && (
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                出错了:{error.message || "请求失败,请检查 DeepSeek API Key 是否已配置。"}
+                出错了:
+                {error.message ||
+                  "请求失败,请检查 DeepSeek API Key 是否已配置。"}
               </div>
             )}
           </div>
@@ -203,7 +223,10 @@ function EmptyState({
       <h2 className="animate-fade-up mt-5 font-serif text-2xl font-semibold">
         {config.label}
       </h2>
-      <p className="animate-fade-up mt-2 text-muted" style={{ animationDelay: "60ms" }}>
+      <p
+        className="animate-fade-up mt-2 text-muted"
+        style={{ animationDelay: "60ms" }}
+      >
         {config.tagline}
       </p>
 
